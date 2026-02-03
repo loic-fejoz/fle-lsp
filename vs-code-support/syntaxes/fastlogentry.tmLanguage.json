@@ -51,8 +51,12 @@
         "date": {
             "patterns": [
                 {
+                    "name": "keyword.other.header.fastlogentry",
+                    "match": "(?i)\\bdate\\b"
+                },
+                {
                     "name": "constant.other.date.fastlogentry",
-                    "match": "(?i)\\b(date\\s+)?\\d{4}-\\d{2}-\\d{2}\\b"
+                    "match": "\\b\\d{4}-\\d{2}-\\d{2}\\b"
                 }
             ]
         },
@@ -60,7 +64,15 @@
             "patterns": [
                 {
                     "name": "keyword.control.flow.fastlogentry",
-                    "match": "(?i)\\b(day\\s+\\+|\\d+m|\\d+\\.\\d+|CW|SSB|AM|FM|RTTY|FT8|PSK|FT4|DATA|JS8|MFSK)\\b"
+                    "match": "(?i)\\bday\\s+\\++"
+                },
+                {
+                    "name": "keyword.control.flow.fastlogentry",
+                    "match": "(?i)\\b\\d+(\\.\\d+)?(m|cm)\\b"
+                },
+                {
+                    "name": "keyword.control.flow.fastlogentry",
+                    "match": "(?i)\\b(CW|SSB|AM|FM|RTTY|FT8|PSK|FT4|DATA|JS8|MFSK)\\b"
                 }
             ]
         },

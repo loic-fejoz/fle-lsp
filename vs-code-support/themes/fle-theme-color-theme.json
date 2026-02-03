@@ -7,6 +7,24 @@
         "editorLineNumber.foreground": "#aaaaaa",
         "editorIndentGuide.background": "#eeeeee"
     },
+    "semanticHighlighting": true,
+    "semanticTokenColors": {
+        "variable": {
+            "foreground": "#000000",
+            "bold": true
+        },
+        "keyword": "#cc0000",
+        "type": "#cc0000",
+        "macro": "#cc0000",
+        "string": "#aa00aa",
+        "number": {
+            "foreground": "#00aa00",
+            "bold": true
+        },
+        "date": "#0000ff",
+        "name": "#8b4513",
+        "extra": "#8b4513"
+    },
     "tokenColors": [
         {
             "name": "Header Keywords",

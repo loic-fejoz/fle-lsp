@@ -1,0 +1,71 @@
+mycall F4JXQ
+mygrid JN35
+operator F4JXQ
+nickname Home
+qslmsg Thanks for the QSO!
+mywwff FFF-1234
+mysota HU-001
+mypota K-1234
+
+date 2026-02-01
+160m cw
+2200 EA1ABC 599 599 <Top band CW>
+2205 G4XYZ 579 559 [Direct]
+
+80m ssb
+2215 F5ABC 59 59 #JN18 @Robert
+2220 ON4ABC 55 57 <Low band phone>
+
+60m am
+2230 HB9ABC 59 59 <Experimental AM>
+
+40m cw
+2240 F1SLS 599 599 <QRP 5W>
+45 DL1ABC 599 599 #JO31
+50 I1ABC 559 579 <Very loud>
+
+date 2026-02-02
+30m rtty
+0800 K1ABC 599 599 <Digital legacy>
+
+20m ft8
+0815 JA1ABC -10 +05 #PM95
+20 VK3ABC -12 -12
+25 W1AW -05 -01 <Big signal>
+
+17m psk
+0900 LZ1ABC <Phase shift keying>
+
+15m ft4
+1000 ZL1ABC -15 -18 <Fast digital>
+
+12m js8
+1100 OH2ABC <JS8Call weak signal>
+
+10m fm
+1200 F8KBR 59 59 <Local repeater>
+10 F4HWN 59 59 #JN18
+
+day +
+6m mfsk
+1400 CT1ABC <Magic band MFSK>
+
+4m data
+1500 OE1ABC <Rare 70MHz contact>
+
+2m ssb
+1600 G0ABC 59 55 #IO91
+10 F1ABC 59 59 #JN38 <VHF contest>
+
+1.25m fm
+1700 W6ABC 59 59 <US specific band>
+
+70cm ft8
+2000 F6ABC -20 -20 #JN19 <UHF Digital>
+
+# Final verification of mixed formatting
+date 2026-02-04
+20m cw
+1200 f1sls 599 599 <lower case callsign test>
+05 G4XYZ 599 599 <already upper case>
+10 k1abc/p 599 599 [portable]

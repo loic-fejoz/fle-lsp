@@ -13,7 +13,7 @@ var (
 	dateRegex   = regexp.MustCompile(`(?i)^date\s+(\d{4}-\d{2}-\d{2})`)
 	simpleDate  = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})$`)
 	dayPlus     = regexp.MustCompile(`(?i)^day\s+\+`)
-	bandRegex   = regexp.MustCompile(`(?i)^(\d+m|\d+\.\d+)$`)
+	bandRegex   = regexp.MustCompile(`(?i)^(\d+(\.\d+)?(m|cm)|\d+\.\d+)$`)
 	modeRegex   = regexp.MustCompile(`(?i)^(CW|SSB|AM|FM|RTTY|FT8|PSK|FT4|DATA|JS8|MFSK)$`)
 	headerRegex = regexp.MustCompile(`(?i)^(mycall|mygrid|operator|nickname|qslmsg|mywwff|mysota|mypota)\s+(.+)$`)
 
@@ -110,6 +110,12 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			} else {
 				state.Date = state.Date.AddDate(0, 0, strings.Count(line, "+"))
 				state.LastTime = ""
+
+				startOfLine := strings.Index(rawLine, line)
+				logbook.Tokens = append(logbook.Tokens, Token{
+					Range: Range{Start: Pos{lineNumber - 1, startOfLine}, End: Pos{lineNumber - 1, startOfLine + len(line)}},
+					Type:  TokenDate,
+				})
 			}
 			continue
 		}
@@ -127,6 +133,20 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			}
 		}
 		if foundControl {
+			startOfLine := strings.Index(rawLine, line)
+			for _, f := range fields {
+				start := strings.Index(line, f)
+				tokenType := TokenKeyword
+				if bandRegex.MatchString(f) {
+					tokenType = TokenBand
+				} else if modeRegex.MatchString(strings.ToUpper(f)) {
+					tokenType = TokenMode
+				}
+				logbook.Tokens = append(logbook.Tokens, Token{
+					Range: Range{Start: Pos{lineNumber - 1, startOfLine + start}, End: Pos{lineNumber - 1, startOfLine + start + len(f)}},
+					Type:  tokenType,
+				})
+			}
 			continue
 		}
 

@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
+	"time"
 
 	"go.lsp.dev/protocol"
 	"go.uber.org/zap"
@@ -39,15 +41,24 @@ func (h *Handler) Initialize(ctx context.Context, params *protocol.InitializePar
 			DefinitionProvider:     false,
 			HoverProvider:          true,
 			DocumentSymbolProvider: true,
-			ColorProvider:          false,
+			CompletionProvider: &protocol.CompletionOptions{
+				TriggerCharacters: []string{" "},
+				ResolveProvider:   false,
+			},
+			DocumentFormattingProvider: true,
+			ColorProvider:              false,
 			SemanticTokensProvider: map[string]interface{}{
 				"legend": protocol.SemanticTokensLegend{
 					TokenTypes: []protocol.SemanticTokenTypes{
-						protocol.SemanticTokenVariable, // Callsign
-						protocol.SemanticTokenString,   // Comment
-						protocol.SemanticTokenKeyword,  // Keyword
-						protocol.SemanticTokenNumber,   // Time
-						protocol.SemanticTokenType,     // Band/Mode (mapped later)
+						protocol.SemanticTokenVariable, // 0: Callsign, Grid
+						protocol.SemanticTokenString,   // 1: Comment, Name, Extra
+						protocol.SemanticTokenKeyword,  // 2: Keyword, Date
+						protocol.SemanticTokenNumber,   // 3: Time, Report
+						protocol.SemanticTokenType,     // 4: Band
+						protocol.SemanticTokenMacro,    // 5: Mode
+						"date",                         // 6: Date value
+						"name",                         // 7: Operator name (@)
+						"extra",                        // 8: Extra/QSL info ([])
 					},
 					TokenModifiers: []protocol.SemanticTokenModifiers{},
 				},
@@ -160,15 +171,15 @@ func (h *Handler) SemanticTokensFull(ctx context.Context, params *protocol.Seman
 		TokenCallsign: 0, // SemanticTokenVariable
 		TokenComment:  1, // SemanticTokenString
 		TokenKeyword:  2, // SemanticTokenKeyword
+		TokenDate:     6, // custom "date"
 		TokenTime:     3, // SemanticTokenNumber
 		TokenBand:     4, // SemanticTokenType
-		TokenMode:     4, // SemanticTokenType
-		TokenName:     1, // String
+		TokenMode:     5, // SemanticTokenMacro
+		TokenName:     7, // custom "name"
 		TokenGrid:     0, // Variable
 		TokenReport:   3, // Number
-		TokenExtra:    1, // String
+		TokenExtra:    8, // custom "extra"
 	}
-
 	data := make([]uint32, 0)
 	var lastLine, lastChar uint32
 
@@ -385,6 +396,213 @@ func (h *Handler) appendLevel(root *[]protocol.DocumentSymbol, year *protocol.Do
 		// Only show days
 		*root = append(*root, month.Children...)
 	}
+}
+
+func (h *Handler) Formatting(ctx context.Context, params *protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
+	filename := params.TextDocument.URI.Filename()
+	v, ok := h.documents.Load(filename)
+	if !ok {
+		return nil, nil
+	}
+	doc := v.(*Document)
+
+	lines := strings.Split(doc.Text, "\n")
+	var edits []protocol.TextEdit
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+
+		formatted := ""
+
+		// 1. Header keywords
+		if loc := headerRegex.FindStringSubmatchIndex(trimmed); loc != nil {
+			key := strings.ToLower(trimmed[loc[2]:loc[3]])
+			val := trimmed[loc[4]:loc[5]]
+			formatted = fmt.Sprintf("%s %s", key, val)
+		} else if loc := dateRegex.FindStringSubmatchIndex(trimmed); loc != nil {
+			// 2. Dates "date YYYY-MM-DD"
+			dateStr := trimmed[loc[2]:loc[3]]
+			formatted = fmt.Sprintf("date %s", dateStr)
+		} else if loc := simpleDate.FindStringSubmatchIndex(trimmed); loc != nil {
+			// 3. Simple Dates "YYYY-MM-DD"
+			formatted = trimmed[loc[2]:loc[3]]
+		} else if dayPlus.MatchString(trimmed) {
+			// 4. "day +"
+			formatted = strings.ToLower(trimmed)
+		} else {
+			// 5. Band/Mode or QSO
+			fields := strings.Fields(trimmed)
+			isControl := true
+			for _, f := range fields {
+				if !bandRegex.MatchString(f) && !modeRegex.MatchString(strings.ToUpper(f)) {
+					isControl = false
+					break
+				}
+			}
+
+			if isControl {
+				// Normalize Band/Mode line
+				var parts []string
+				for _, f := range fields {
+					if bandRegex.MatchString(f) {
+						parts = append(parts, strings.ToLower(f))
+					} else {
+						parts = append(parts, strings.ToUpper(f))
+					}
+				}
+				formatted = strings.Join(parts, " ")
+			} else if loc := qsoLineRegex.FindStringSubmatchIndex(trimmed); loc != nil {
+				// 6. QSO Line Alignment
+				rawTime := ""
+				if loc[2] != -1 {
+					rawTime = trimmed[loc[2]:loc[3]]
+				}
+				callsign := strings.ToUpper(trimmed[loc[4]:loc[5]])
+				rstS := ""
+				if loc[6] != -1 {
+					rstS = trimmed[loc[6]:loc[7]]
+				}
+				rstR := ""
+				if loc[8] != -1 {
+					rstR = trimmed[loc[8]:loc[9]]
+				}
+				extras := ""
+				if loc[10] != -1 {
+					extras = trimmed[loc[10]:loc[11]]
+				}
+
+				// Format to fixed columns
+				// Time (5) | Call (16) | RST_S (4) | RST_R (4) | Extras
+				timeCol := fmt.Sprintf("%-5s", rawTime)
+				if rawTime == "" {
+					timeCol = "     "
+				}
+				callCol := fmt.Sprintf("%-16s", callsign)
+				rstSCol := fmt.Sprintf("%-4s", rstS)
+				rstRCol := fmt.Sprintf("%-4s", rstR)
+
+				formatted = strings.TrimRight(timeCol+callCol+rstSCol+rstRCol+extras, " ")
+			}
+		}
+
+		if formatted != "" && formatted != trimmed {
+			edits = append(edits, protocol.TextEdit{
+				Range: protocol.Range{
+					Start: protocol.Position{Line: uint32(i), Character: 0},
+					End:   protocol.Position{Line: uint32(i), Character: uint32(len(line))},
+				},
+				NewText: formatted,
+			})
+		}
+	}
+
+	return edits, nil
+}
+
+func (h *Handler) Completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
+	filename := params.TextDocument.URI.Filename()
+	v, ok := h.documents.Load(filename)
+	if !ok {
+		return nil, nil
+	}
+	doc := v.(*Document)
+
+	// 1. Get current UTC time and date for suggestion
+	now := time.Now().UTC()
+	nowUTC := now.Format("1504")
+	dateUTC := now.Format("2006-01-02")
+
+	items := []protocol.CompletionItem{}
+
+	// Determine context
+	lineNum := params.Position.Line
+	charPos := params.Position.Character
+	docLines := strings.Split(doc.Text, "\n")
+	currentLine := ""
+	if int(lineNum) < len(docLines) {
+		currentLine = docLines[lineNum]
+	}
+	trimmedPrefix := strings.TrimSpace(currentLine[:charPos])
+
+	// Context: Start of line
+	if trimmedPrefix == "" {
+		items = append(items, protocol.CompletionItem{
+			Label:      "Current UTC Time: " + nowUTC,
+			InsertText: nowUTC,
+			Kind:       protocol.CompletionItemKindSnippet,
+			Detail:     "Insert current UTC time",
+			SortText:   "00",
+		})
+
+		// Only suggest 'date YYYY-MM-DD' if no date in doc
+		hasDate := false
+		if doc.Logbook != nil {
+			// Check tokens for any date
+			for _, t := range doc.Logbook.Tokens {
+				if t.Type == TokenDate {
+					hasDate = true
+					break
+				}
+			}
+		}
+		if !hasDate {
+			items = append(items, protocol.CompletionItem{
+				Label:      "date " + dateUTC,
+				InsertText: "date " + dateUTC,
+				Kind:       protocol.CompletionItemKindSnippet,
+				Detail:     "Suggest current UTC date",
+				SortText:   "01",
+			})
+		}
+	}
+
+	// Context: After 'date' keyword
+	if strings.ToLower(trimmedPrefix) == "date" {
+		items = append(items, protocol.CompletionItem{
+			Label:      dateUTC,
+			InsertText: dateUTC,
+			Kind:       protocol.CompletionItemKindSnippet,
+			Detail:     "Current UTC date",
+			SortText:   "00",
+		})
+	}
+
+	// 2. Add Keywords
+	keywords := []string{"mycall", "mygrid", "operator", "nickname", "qslmsg", "mywwff", "mysota", "mypota", "date"}
+	for _, k := range keywords {
+		items = append(items, protocol.CompletionItem{
+			Label: k,
+			Kind:  protocol.CompletionItemKindKeyword,
+		})
+	}
+
+	// 3. Add Bands
+	bands := []string{"160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m", "4m", "2m", "1.25m", "70cm"}
+	for _, b := range bands {
+		items = append(items, protocol.CompletionItem{
+			Label:  b,
+			Kind:   protocol.CompletionItemKindEnumMember,
+			Detail: "Band",
+		})
+	}
+
+	// 4. Add Modes
+	modes := []string{"CW", "SSB", "AM", "FM", "RTTY", "FT8", "PSK", "FT4", "DATA", "JS8", "MFSK"}
+	for _, m := range modes {
+		items = append(items, protocol.CompletionItem{
+			Label:  m,
+			Kind:   protocol.CompletionItemKindEnumMember,
+			Detail: "Mode",
+		})
+	}
+
+	return &protocol.CompletionList{
+		IsIncomplete: false,
+		Items:        items,
+	}, nil
 }
 
 func (h *Handler) publishDiagnostics(ctx context.Context, uri protocol.DocumentURI, diags []Diagnostic) error {

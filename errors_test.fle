@@ -1,0 +1,25 @@
+# Error: Missing mycall mandatory header
+
+date 2026-02-31  # Error: Invalid day in date
+date 2026-13-01  # Error: Invalid month in date
+
+1200 F1SLS        # Warning: QSO before band/mode set
+
+40m cw
+1260 G4XYZ        # Error: Invalid minutes (60)
+1245 ON4ABC       # Warning: Time goes backwards (Last was 1200 effectively, but let's check expansion)
+# If 1200 then 1260(error) then 1245 -> 1245 < 1200
+
+day +             # Error: day + before any valid date (if the above dates failed, but usually they set the state anyway)
+
+40m cw
+1000 K1ABC
+0950 F5ABC        # Warning: Time goes backwards
+
+# Missing band/mode transition
+ssb               # Just mode
+1100 G0ABC        # Warning: Band not set
+
+date 2026-02-03
+80m               # Just band
+1200 EA1ABC       # Warning: Mode not set

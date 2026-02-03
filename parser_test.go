@@ -159,3 +159,44 @@ date 2024-09-22
 		}
 	}
 }
+func TestNewBandsAndDayPlus(t *testing.T) {
+	content := `
+mycall F4JXQ
+date 2026-01-01
+1.25m fm
+1200 W6ABC
+70cm ft8
+1205 F6ABC
+day ++
+2m ssb
+1000 G0ABC
+`
+	logbook, diags, err := ParseFLE(content)
+	if err != nil {
+		t.Fatalf("ParseFLE failed: %v", err)
+	}
+	if len(diags) > 0 {
+		for _, d := range diags {
+			if d.Severity == SeverityError {
+				t.Errorf("Unexpected error: %s", d.Message)
+			}
+		}
+	}
+
+	if len(logbook.QSOs) != 3 {
+		t.Fatalf("Expected 3 QSOs, got %d", len(logbook.QSOs))
+	}
+
+	if logbook.QSOs[0].Band != "1.25m" {
+		t.Errorf("Expected 1.25m, got %s", logbook.QSOs[0].Band)
+	}
+	if logbook.QSOs[1].Band != "70cm" {
+		t.Errorf("Expected 70cm, got %s", logbook.QSOs[1].Band)
+	}
+
+	// day ++ should add 2 days to 2026-01-01
+	expectedDate := "2026-01-03"
+	if logbook.QSOs[2].Timestamp.Format("2006-01-02") != expectedDate {
+		t.Errorf("Expected date %s, got %s", expectedDate, logbook.QSOs[2].Timestamp.Format("2006-01-02"))
+	}
+}
