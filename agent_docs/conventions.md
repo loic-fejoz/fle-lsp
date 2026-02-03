@@ -20,5 +20,21 @@
 - **Grids**: Use the `formatGrid` helper to ensure correct casing (e.g., `JN38qr`, `JN38`).
 - **QSOs**: Time, callsign, and reports should be consistently formatted.
 
+## Security Best Practices
+- **ReDoS Immunity**: Always use the standard `regexp` package (RE2 based). **DO NOT** use backtracking regex libraries (e.g., `regexp2`) without explicit justification and vulnerability analysis.
+- **Network I/O**: When reading from network connections (especially `net.Conn`), **ALWAYS** wrap the reader in `io.LimitReader` to prevent memory exhaustion DoS.
+- **Path Parsing**: Sanitize and validate all file paths used in `os.Open` or `exec.Command`. Ensure they reside within expected directories.
+
+## Code Safe-Guards
+- **Bounds Checking**: **ALWAYS** check `len()` or indices before slicing strings or arrays/slices.
+  ```go
+  // Bad
+  val := line[start:end]
+  // Good
+  if end <= len(line) { val := line[start:end] }
+  ```
+- **Nil Safety**: Add defensive checks for optional pointers before dereferencing, especially in deep struct hierarchies (e.g., LSP `DocumentSymbol` trees).
+- **Error Checking**: explicitly handle errors from conversion functions like `strconv.Atoi` or `strconv.ParseFloat`. Do not blindly ignore them with `_`.
+
 ## Examples
 - See [handlers.go:L27-48](file:///home/loic/projets/fle-lsp/handlers.go#L27-48) for the implementation of the `Initialize` method using `go.lsp.dev/protocol` types.
