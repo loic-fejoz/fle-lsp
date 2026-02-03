@@ -1,14 +1,14 @@
 run:
   tests: true
+  exclude-dirs:
+    - third_party
+    - builtin
+    - examples
 linters:
   enable:
     - misspell
     - revive
     - gofmt
-  exclude-dirs:
-    - third_party
-    - builtin
-    - examples
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
