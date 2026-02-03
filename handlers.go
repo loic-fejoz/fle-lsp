@@ -223,9 +223,14 @@ func (h *Handler) Hover(ctx context.Context, params *protocol.HoverParams) (*pro
 		return nil, nil
 	}
 
-	content := fmt.Sprintf("**QSO Context**\n\n* **Date:** %s\n* **Time:** %s\n* **Band:** %s\n* **Mode:** %s\n* **Call:** %s",
+	localTime := foundQSO.Timestamp.Local()
+	zone, _ := localTime.Zone()
+
+	content := fmt.Sprintf("**QSO Context**\n\n* **Date (UTC):** %s\n* **Time (UTC):** %s\n* **Local Time:** %s (%s)\n* **Band:** %s\n* **Mode:** %s\n* **Call:** %s",
 		foundQSO.Timestamp.Format("2006-01-02"),
 		foundQSO.Timestamp.Format("15:04"),
+		localTime.Format("15:04"),
+		zone,
 		foundQSO.Band,
 		foundQSO.Mode,
 		foundQSO.Callsign,
@@ -246,52 +251,140 @@ func (h *Handler) DocumentSymbol(ctx context.Context, params *protocol.DocumentS
 		return nil, nil
 	}
 	doc := v.(*Document)
-	if doc.Logbook == nil {
+	if doc.Logbook == nil || len(doc.Logbook.QSOs) == 0 {
 		return nil, nil
 	}
 
-	var symbols []protocol.DocumentSymbol
+	// 1. Preliminary scan to determine if we should show Year/Month
+	years := make(map[int]bool)
+	months := make(map[string]bool) // Key: "Year-Month"
+	for _, qso := range doc.Logbook.QSOs {
+		years[qso.Timestamp.Year()] = true
+		months[qso.Timestamp.Format("2006-01")] = true
+	}
+
+	showYear := len(years) > 1
+	showMonth := len(months) > 1
+
+	// 2. Build Hierarchy
+	var finalSymbols []protocol.DocumentSymbol
+	var currentYear int
+	var currentMonth string
 	var currentDate string
-	var currentDaySymbol *protocol.DocumentSymbol
+
+	var yearSym *protocol.DocumentSymbol
+	var monthSym *protocol.DocumentSymbol
+	var daySym *protocol.DocumentSymbol
 
 	for _, qso := range doc.Logbook.QSOs {
-		dateStr := qso.Timestamp.Format("2006-01-02")
-		if dateStr != currentDate {
-			if currentDaySymbol != nil {
-				symbols = append(symbols, *currentDaySymbol)
+		y := qso.Timestamp.Year()
+		m := qso.Timestamp.Format("2006-01")
+		d := qso.Timestamp.Format("2006-01-02")
+		line := uint32(qso.LineNumber - 1)
+		qsoRange := protocol.Range{Start: protocol.Position{Line: line}, End: protocol.Position{Line: line}}
+
+		// Handle Year change
+		if y != currentYear {
+			if yearSym != nil {
+				h.appendLevel(&finalSymbols, yearSym, monthSym, daySym, showYear, showMonth)
 			}
-			currentDate = dateStr
-			currentDaySymbol = &protocol.DocumentSymbol{
-				Name:           dateStr,
+			currentYear = y
+			currentMonth = "" // Reset month/day on year change
+			currentDate = ""
+			yearSym = &protocol.DocumentSymbol{
+				Name:           fmt.Sprintf("%d", y),
 				Kind:           protocol.SymbolKindModule,
-				Range:          protocol.Range{Start: protocol.Position{Line: uint32(qso.LineNumber - 1)}, End: protocol.Position{Line: uint32(qso.LineNumber - 1)}},
-				SelectionRange: protocol.Range{Start: protocol.Position{Line: uint32(qso.LineNumber - 1)}, End: protocol.Position{Line: uint32(qso.LineNumber - 1)}},
+				Range:          qsoRange,
+				SelectionRange: qsoRange,
+				Children:       []protocol.DocumentSymbol{},
+			}
+			monthSym = nil
+			daySym = nil
+		}
+
+		// Handle Month change
+		if m != currentMonth {
+			if monthSym != nil {
+				h.appendMonthToYear(yearSym, monthSym, daySym, showMonth)
+			}
+			currentMonth = m
+			currentDate = "" // Reset day on month change
+			monthSym = &protocol.DocumentSymbol{
+				Name:           qso.Timestamp.Format("January"),
+				Kind:           protocol.SymbolKindPackage,
+				Range:          qsoRange,
+				SelectionRange: qsoRange,
+				Children:       []protocol.DocumentSymbol{},
+			}
+			daySym = nil
+		}
+
+		// Handle Day change
+		if d != currentDate {
+			if daySym != nil {
+				monthSym.Children = append(monthSym.Children, *daySym)
+			}
+			currentDate = d
+			daySym = &protocol.DocumentSymbol{
+				Name:           qso.Timestamp.Format("02 (Mon)"),
+				Kind:           protocol.SymbolKindClass,
+				Range:          qsoRange,
+				SelectionRange: qsoRange,
 				Children:       []protocol.DocumentSymbol{},
 			}
 		}
 
-		qsoSymbol := protocol.DocumentSymbol{
+		// Add QSO to Day
+		qsoSym := protocol.DocumentSymbol{
 			Name:           fmt.Sprintf("%s - %s", qso.Timestamp.Format("15:04"), qso.Callsign),
 			Detail:         fmt.Sprintf("%s %s", qso.Band, qso.Mode),
-			Kind:           protocol.SymbolKindClass,
-			Range:          protocol.Range{Start: protocol.Position{Line: uint32(qso.LineNumber - 1)}, End: protocol.Position{Line: uint32(qso.LineNumber - 1)}},
-			SelectionRange: protocol.Range{Start: protocol.Position{Line: uint32(qso.LineNumber - 1)}, End: protocol.Position{Line: uint32(qso.LineNumber - 1)}},
+			Kind:           protocol.SymbolKindEvent,
+			Range:          qsoRange,
+			SelectionRange: qsoRange,
 		}
-		currentDaySymbol.Children = append(currentDaySymbol.Children, qsoSymbol)
-		// Update parent range to include this child
-		currentDaySymbol.Range.End.Line = uint32(qso.LineNumber - 1)
+		daySym.Children = append(daySym.Children, qsoSym)
+
+		// Expand ranges
+		daySym.Range.End = qsoRange.End
+		monthSym.Range.End = qsoRange.End
+		yearSym.Range.End = qsoRange.End
 	}
 
-	if currentDaySymbol != nil {
-		symbols = append(symbols, *currentDaySymbol)
-	}
+	// Final append
+	h.appendLevel(&finalSymbols, yearSym, monthSym, daySym, showYear, showMonth)
 
-	// Convert to []interface{} as required by the protocol package
-	res := make([]interface{}, len(symbols))
-	for i, s := range symbols {
+	res := make([]interface{}, len(finalSymbols))
+	for i, s := range finalSymbols {
 		res[i] = s
 	}
 	return res, nil
+}
+
+func (h *Handler) appendMonthToYear(year *protocol.DocumentSymbol, month *protocol.DocumentSymbol, day *protocol.DocumentSymbol, showMonth bool) {
+	if day != nil {
+		month.Children = append(month.Children, *day)
+	}
+}
+
+func (h *Handler) appendLevel(root *[]protocol.DocumentSymbol, year *protocol.DocumentSymbol, month *protocol.DocumentSymbol, day *protocol.DocumentSymbol, showYear, showMonth bool) {
+	if day != nil {
+		month.Children = append(month.Children, *day)
+	}
+
+	if showYear {
+		if showMonth {
+			year.Children = append(year.Children, *month)
+		} else {
+			// Skip month level, add day children to year directly
+			year.Children = append(year.Children, month.Children...)
+		}
+		*root = append(*root, *year)
+	} else if showMonth {
+		*root = append(*root, *month)
+	} else {
+		// Only show days
+		*root = append(*root, month.Children...)
+	}
 }
 
 func (h *Handler) publishDiagnostics(ctx context.Context, uri protocol.DocumentURI, diags []Diagnostic) error {
