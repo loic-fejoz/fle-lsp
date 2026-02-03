@@ -199,3 +199,46 @@ func TestHandler_ErrorCases(t *testing.T) {
 		}
 	})
 }
+
+func TestHandler_FoldingRange(t *testing.T) {
+	content := `mycall F4JXQ
+date 2026-02-01
+40m cw
+1200 EA1ABC
+date 2026-02-02
+1300 G4XYZ`
+	h, _ := setupTestHandler(t, content)
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	params := &protocol.FoldingRangeParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+		},
+	}
+
+	ranges, err := h.FoldingRanges(context.Background(), params)
+	if err != nil {
+		t.Fatalf("FoldingRanges failed: %v", err)
+	}
+
+	// We expect one range for the first day (lines 1-3, 0-indexed)
+	// and one range for the second day (line 5... wait, 1300 G4XYZ is line 5)
+	// Actually, day 1 is lines 1, 2, 3. Day 2 is lines 4, 5.
+	// But first day starts at line 1 (date 2026-02-01) and ends at line 3 (1200 EA1ABC).
+	// Second day starts at line 4 (date 2026-02-02) and ends at line 5 (1300 G4XYZ).
+	if len(ranges) == 0 {
+		t.Fatal("Expected folding ranges, got 0")
+	}
+
+	// Verify at least one range exists
+	found := false
+	for _, r := range ranges {
+		if (r.StartLine == 0 || r.StartLine == 1) && r.EndLine == 3 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected range for first day (covering 1-3), got %v", ranges)
+	}
+}

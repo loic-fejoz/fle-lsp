@@ -47,6 +47,7 @@ func (h *Handler) Initialize(_ context.Context, _ *protocol.InitializeParams) (*
 				ResolveProvider:   false,
 			},
 			DocumentFormattingProvider: true,
+			FoldingRangeProvider:       true,
 			ColorProvider:              false,
 			SemanticTokensProvider: map[string]interface{}{
 				"legend": protocol.SemanticTokensLegend{
@@ -379,6 +380,109 @@ func (h *Handler) DocumentSymbol(_ context.Context, params *protocol.DocumentSym
 		res[i] = s
 	}
 	return res, nil
+}
+
+// FoldingRanges handles the textDocument/foldingRange request.
+func (h *Handler) FoldingRanges(_ context.Context, params *protocol.FoldingRangeParams) ([]protocol.FoldingRange, error) {
+	filename := params.TextDocument.URI.Filename()
+	v, ok := h.documents.Load(filename)
+	if !ok {
+		return nil, nil
+	}
+	doc := v.(*Document)
+	if doc.Logbook == nil || len(doc.Logbook.QSOs) == 0 {
+		return nil, nil
+	}
+
+	// Logic similar to DocumentSymbol to find ranges
+	years := make(map[int]bool)
+	months := make(map[string]bool)
+	for _, qso := range doc.Logbook.QSOs {
+		years[qso.Timestamp.Year()] = true
+		months[qso.Timestamp.Format("2006-01")] = true
+	}
+	showYear := len(years) > 1
+	showMonth := len(months) > 1
+
+	var ranges []protocol.FoldingRange
+	var currentYear int
+	var currentMonth string
+	var currentDate string
+
+	var yearStartLine, monthStartLine, dayStartLine uint32
+	var lastLine uint32
+
+	// Helper to find the first token line in a range
+	getTokenStart := func(startLine, endLine uint32) uint32 {
+		minLine := endLine
+		for _, t := range doc.Logbook.Tokens {
+			l := uint32(t.Range.Start.Line)
+			if l >= startLine && l < minLine {
+				minLine = l
+			}
+		}
+		return minLine
+	}
+
+	var prevQSOLine uint32
+	for i, qso := range doc.Logbook.QSOs {
+		y := qso.Timestamp.Year()
+		m := qso.Timestamp.Format("2006-01")
+		d := qso.Timestamp.Format("2006-01-02")
+		line := uint32(qso.LineNumber - 1)
+
+		if y != currentYear {
+			if i > 0 && showYear && yearStartLine < lastLine {
+				ranges = append(ranges, protocol.FoldingRange{
+					StartLine: yearStartLine,
+					EndLine:   lastLine,
+				})
+			}
+			currentYear = y
+			yearStartLine = getTokenStart(prevQSOLine, line)
+			currentMonth = ""
+			currentDate = ""
+		}
+
+		if m != currentMonth {
+			if i > 0 && showMonth && monthStartLine < lastLine {
+				ranges = append(ranges, protocol.FoldingRange{
+					StartLine: monthStartLine,
+					EndLine:   lastLine,
+				})
+			}
+			currentMonth = m
+			monthStartLine = getTokenStart(prevQSOLine, line)
+			currentDate = ""
+		}
+
+		if d != currentDate {
+			if i > 0 && dayStartLine < lastLine {
+				ranges = append(ranges, protocol.FoldingRange{
+					StartLine: dayStartLine,
+					EndLine:   lastLine,
+				})
+			}
+			currentDate = d
+			dayStartLine = getTokenStart(prevQSOLine, line)
+		}
+
+		lastLine = line
+		prevQSOLine = line + 1
+	}
+
+	// Close final ranges
+	if showYear && yearStartLine < lastLine {
+		ranges = append(ranges, protocol.FoldingRange{StartLine: yearStartLine, EndLine: lastLine})
+	}
+	if showMonth && monthStartLine < lastLine {
+		ranges = append(ranges, protocol.FoldingRange{StartLine: monthStartLine, EndLine: lastLine})
+	}
+	if dayStartLine < lastLine {
+		ranges = append(ranges, protocol.FoldingRange{StartLine: dayStartLine, EndLine: lastLine})
+	}
+
+	return ranges, nil
 }
 
 func (h *Handler) appendMonthToYear(_ *protocol.DocumentSymbol, month *protocol.DocumentSymbol, day *protocol.DocumentSymbol, _ bool) {
