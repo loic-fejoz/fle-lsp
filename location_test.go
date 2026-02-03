@@ -94,11 +94,11 @@ func TestGetGPSDGrid(t *testing.T) {
 		_, _ = conn.Read(buf)
 
 		// Send version and TPV
-		fmt.Fprintf(conn, "{\"class\":\"VERSION\",\"release\":\"3.22\",\"rev\":\"3.22\",\"proto_major\":3,\"proto_minor\":14}\n")
+		_, _ = fmt.Fprintf(conn, "{\"class\":\"VERSION\",\"release\":\"3.22\",\"rev\":\"3.22\",\"proto_major\":3,\"proto_minor\":14}\n")
 		time.Sleep(50 * time.Millisecond)
 		// Send a TPV response (mode 3 = 3D fix)
 		// 48.8583, 2.2945 -> "JN18du"
-		fmt.Fprintf(conn, "{\"class\":\"TPV\",\"device\":\"/dev/pts/1\",\"mode\":3,\"time\":\"2026-02-03T21:40:00.000Z\",\"lat\":48.8583,\"lon\":2.2945,\"alt\":35.0}\n")
+		_, _ = fmt.Fprintf(conn, "{\"class\":\"TPV\",\"device\":\"/dev/pts/1\",\"mode\":3,\"time\":\"2026-02-03T21:40:00.000Z\",\"lat\":48.8583,\"lon\":2.2945,\"alt\":35.0}\n")
 	}()
 
 	grid := GetGPSDGrid()

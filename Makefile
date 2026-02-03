@@ -1,4 +1,6 @@
-fle-lsp: cmd/main.go handlers.go models.go  parser.go server.go  unimplemented.go
+SRCS := $(shell find . -type f -name "*.go" -not -name "*_test.go")
+
+fle-lsp: $(SRCS)
 	go build -o fle-lsp ./cmd/main.go
 
 test:
