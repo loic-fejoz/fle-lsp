@@ -45,14 +45,24 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 		}
 
 		// 1. Check for Header keywords
-		if m := headerRegex.FindStringSubmatch(line); m != nil {
-			updateHeader(&logbook.Header, strings.ToLower(m[1]), m[2])
+		if loc := headerRegex.FindStringSubmatchIndex(line); loc != nil {
+			key := strings.ToLower(line[loc[2]:loc[3]])
+			val := line[loc[4]:loc[5]]
+			updateHeader(&logbook.Header, key, val)
+
+			// Extract starting position in rawLine for accuracy
+			startOfLine := strings.Index(rawLine, line)
+			logbook.Tokens = append(logbook.Tokens, Token{
+				Range: Range{Start: Pos{lineNumber - 1, startOfLine + loc[2]}, End: Pos{lineNumber - 1, startOfLine + loc[3]}},
+				Type:  TokenKeyword,
+			})
 			continue
 		}
 
 		// 2. Check for Dates
-		if m := dateRegex.FindStringSubmatch(line); m != nil {
-			parsedDate, err := time.Parse("2006-01-02", m[1])
+		if loc := dateRegex.FindStringSubmatchIndex(line); loc != nil {
+			dateStr := line[loc[2]:loc[3]]
+			parsedDate, err := time.Parse("2006-01-02", dateStr)
 			if err != nil {
 				diagnostics = append(diagnostics, Diagnostic{
 					Range:    Range{Start: Pos{lineNumber - 1, 0}, End: Pos{lineNumber - 1, len(rawLine)}},
@@ -62,10 +72,17 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			}
 			state.Date = parsedDate
 			state.LastTime = ""
+
+			startOfLine := strings.Index(rawLine, line)
+			logbook.Tokens = append(logbook.Tokens, Token{
+				Range: Range{Start: Pos{lineNumber - 1, startOfLine + loc[0]}, End: Pos{lineNumber - 1, startOfLine + loc[1]}},
+				Type:  TokenDate,
+			})
 			continue
 		}
-		if m := simpleDate.FindStringSubmatch(line); m != nil {
-			parsedDate, err := time.Parse("2006-01-02", m[1])
+		if loc := simpleDate.FindStringSubmatchIndex(line); loc != nil {
+			dateStr := line[loc[2]:loc[3]]
+			parsedDate, err := time.Parse("2006-01-02", dateStr)
 			if err != nil {
 				diagnostics = append(diagnostics, Diagnostic{
 					Range:    Range{Start: Pos{lineNumber - 1, 0}, End: Pos{lineNumber - 1, len(rawLine)}},
@@ -75,6 +92,12 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			}
 			state.Date = parsedDate
 			state.LastTime = ""
+
+			startOfLine := strings.Index(rawLine, line)
+			logbook.Tokens = append(logbook.Tokens, Token{
+				Range: Range{Start: Pos{lineNumber - 1, startOfLine + loc[0]}, End: Pos{lineNumber - 1, startOfLine + loc[1]}},
+				Type:  TokenDate,
+			})
 			continue
 		}
 		if dayPlus.MatchString(line) {
@@ -177,30 +200,47 @@ func updateHeader(h *Header, key, value string) {
 }
 
 func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, []Diagnostic, bool) {
-	m := qsoLineRegex.FindStringSubmatch(line)
-	if m == nil {
+	loc := qsoLineRegex.FindStringSubmatchIndex(line)
+	if loc == nil {
 		return QSO{}, nil, false
 	}
 
-	rawTime := m[1]
-	callsign := m[2]
-	rstS := m[3]
-	rstR := m[4]
-	extras := m[5]
+	rawTime := ""
+	if loc[2] != -1 {
+		rawTime = line[loc[2]:loc[3]]
+	}
+	callsign := line[loc[4]:loc[5]]
+	rstS := ""
+	if loc[6] != -1 {
+		rstS = line[loc[6]:loc[7]]
+	}
+	rstR := ""
+	if loc[8] != -1 {
+		rstR = line[loc[8]:loc[9]]
+	}
+	extras := ""
+	if loc[10] != -1 {
+		extras = line[loc[10]:loc[11]]
+	}
 
 	var diags []Diagnostic
+	var tokens []Token
 
 	// 1. Validate minutes (00-59)
-	if len(rawTime) >= 2 {
+	if rawTime != "" && len(rawTime) >= 2 {
 		minsStr := rawTime[len(rawTime)-2:]
 		mins, _ := strconv.Atoi(minsStr)
 		if mins > 59 {
 			diags = append(diags, Diagnostic{
-				Range:    Range{Start: Pos{lineNum - 1, 0}, End: Pos{lineNum - 1, len(rawTime)}},
+				Range:    Range{Start: Pos{lineNum - 1, loc[2]}, End: Pos{lineNum - 1, loc[3]}},
 				Message:  fmt.Sprintf("Invalid minutes: %s", minsStr),
 				Severity: SeverityError,
 			})
 		}
+		tokens = append(tokens, Token{
+			Range: Range{Start: Pos{lineNum - 1, loc[2]}, End: Pos{lineNum - 1, loc[3]}},
+			Type:  TokenTime,
+		})
 	}
 
 	// Time expansion logic
@@ -209,13 +249,31 @@ func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, []Diagno
 	// 2. Check for monotonic time
 	if state.LastTime != "" && expandedTime < state.LastTime {
 		diags = append(diags, Diagnostic{
-			Range:    Range{Start: Pos{lineNum - 1, 0}, End: Pos{lineNum - 1, len(rawTime)}},
+			Range:    Range{Start: Pos{lineNum - 1, loc[2]}, End: Pos{lineNum - 1, loc[3]}},
 			Message:  fmt.Sprintf("Time goes backwards: %s < %s", expandedTime, state.LastTime),
 			Severity: SeverityWarning,
 		})
 	}
 
 	state.LastTime = expandedTime
+
+	tokens = append(tokens, Token{
+		Range: Range{Start: Pos{lineNum - 1, loc[4]}, End: Pos{lineNum - 1, loc[5]}},
+		Type:  TokenCallsign,
+	})
+
+	if rstS != "" {
+		tokens = append(tokens, Token{
+			Range: Range{Start: Pos{lineNum - 1, loc[6]}, End: Pos{lineNum - 1, loc[7]}},
+			Type:  TokenReport,
+		})
+	}
+	if rstR != "" {
+		tokens = append(tokens, Token{
+			Range: Range{Start: Pos{lineNum - 1, loc[8]}, End: Pos{lineNum - 1, loc[9]}},
+			Type:  TokenReport,
+		})
+	}
 
 	ts, _ := time.Parse("2006-01-02 1504", state.Date.Format("2006-01-02")+" "+expandedTime)
 
@@ -242,19 +300,39 @@ func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, []Diagno
 	}
 
 	// Parse extras
-	if n := extraNameRegex.FindStringSubmatch(extras); n != nil {
-		qso.Name = n[1]
-	}
-	if g := extraGridRegex.FindStringSubmatch(extras); g != nil {
-		qso.Grid = g[1]
-	}
-	if c := extraCommentRegex.FindStringSubmatch(extras); c != nil {
-		qso.Comment = c[1]
-	}
-	if q := extraQSLRegex.FindStringSubmatch(extras); q != nil {
-		qso.QSLMsg = q[1]
+	if extras != "" {
+		startExtras := loc[10]
+		if n := extraNameRegex.FindStringSubmatchIndex(extras); n != nil {
+			qso.Name = extras[n[2]:n[3]]
+			tokens = append(tokens, Token{
+				Range: Range{Start: Pos{lineNum - 1, startExtras + n[0]}, End: Pos{lineNum - 1, startExtras + n[1]}},
+				Type:  TokenName,
+			})
+		}
+		if g := extraGridRegex.FindStringSubmatchIndex(extras); g != nil {
+			qso.Grid = extras[g[2]:g[3]]
+			tokens = append(tokens, Token{
+				Range: Range{Start: Pos{lineNum - 1, startExtras + g[0]}, End: Pos{lineNum - 1, startExtras + g[1]}},
+				Type:  TokenGrid,
+			})
+		}
+		if c := extraCommentRegex.FindStringSubmatchIndex(extras); c != nil {
+			qso.Comment = extras[c[2]:c[3]]
+			tokens = append(tokens, Token{
+				Range: Range{Start: Pos{lineNum - 1, startExtras + c[0]}, End: Pos{lineNum - 1, startExtras + c[1]}},
+				Type:  TokenComment,
+			})
+		}
+		if q := extraQSLRegex.FindStringSubmatchIndex(extras); q != nil {
+			qso.QSLMsg = extras[q[2]:q[3]]
+			tokens = append(tokens, Token{
+				Range: Range{Start: Pos{lineNum - 1, startExtras + q[0]}, End: Pos{lineNum - 1, startExtras + q[1]}},
+				Type:  TokenExtra,
+			})
+		}
 	}
 
+	qso.Tokens = tokens
 	return qso, diags, true
 }
 
