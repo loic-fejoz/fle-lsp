@@ -16,8 +16,8 @@ func TestParseErrorsFile(t *testing.T) {
 		t.Errorf("ParseFLE returned unexpected error: %v", err)
 	}
 
-	// Based on manual inspection, we expect at least 9 diagnostics
-	expectedMinDiags := 9
+	// Based on manual inspection, we expect at least 12 diagnostics
+	expectedMinDiags := 12
 	if len(diags) < expectedMinDiags {
 		t.Errorf("Expected at least %d diagnostics, got %d", expectedMinDiags, len(diags))
 	}

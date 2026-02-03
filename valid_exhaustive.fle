@@ -66,6 +66,6 @@ day +
 # Final verification of mixed formatting
 date 2026-02-04
 20m cw
-1200 f1sls 599 599 <lower case callsign test>
+1200 F1SLS 599 599 <lower case callsign test>
 05 G4XYZ 599 599 <already upper case>
-10 k1abc/p 599 599 [portable]
+10 K1ABC/P 599 599 [portable]

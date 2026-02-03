@@ -3,6 +3,7 @@ package flelsp
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -48,6 +49,7 @@ func (h *Handler) Initialize(_ context.Context, _ *protocol.InitializeParams) (*
 			DocumentFormattingProvider:      true,
 			DocumentRangeFormattingProvider: true,
 			FoldingRangeProvider:            true,
+			CodeActionProvider:              true,
 			ColorProvider:                   false,
 			SemanticTokensProvider: map[string]interface{}{
 				"legend": protocol.SemanticTokensLegend{
@@ -779,6 +781,7 @@ func (h *Handler) publishDiagnostics(ctx context.Context, uri protocol.DocumentU
 				End:   protocol.Position{Line: uint32(d.Range.End.Line), Character: uint32(d.Range.End.Character)},
 			},
 			Severity: protocol.DiagnosticSeverity(d.Severity + 1), // Mapping Severity
+			Code:     d.Code,
 			Message:  d.Message,
 			Source:   "fle-lsp",
 		}
@@ -788,6 +791,131 @@ func (h *Handler) publishDiagnostics(ctx context.Context, uri protocol.DocumentU
 		URI:         uri,
 		Diagnostics: pDiags,
 	})
+}
+
+// CodeAction handles the textDocument/codeAction request.
+func (h *Handler) CodeAction(_ context.Context, params *protocol.CodeActionParams) ([]protocol.CodeAction, error) {
+	filename := params.TextDocument.URI.Filename()
+	v, ok := h.documents.Load(filename)
+	if !ok {
+		return nil, nil
+	}
+	doc := v.(*Document)
+
+	actions := make([]protocol.CodeAction, 0)
+
+	for _, d := range params.Context.Diagnostics {
+		code, ok := d.Code.(string)
+		if !ok {
+			continue
+		}
+
+		switch code {
+		case CodeInvalidDate:
+			// "Fix date format"
+			line := doc.Text[0:0] // Fallback
+			lines := strings.Split(doc.Text, "\n")
+			if int(d.Range.Start.Line) < len(lines) {
+				line = lines[d.Range.Start.Line]
+			}
+
+			// 1. Attempt to find YYYY[/. ]MM[/. ]DD
+			reISO := regexp.MustCompile(`(\d{4})[/. ](\d{2})[/. ](\d{2})`)
+			if matches := reISO.FindStringSubmatch(line); matches != nil {
+				fixedDate := fmt.Sprintf("%s-%s-%s", matches[1], matches[2], matches[3])
+				startChar := strings.Index(line, matches[0])
+				actions = append(actions, protocol.CodeAction{
+					Title:       "Fix date format to YYYY-MM-DD",
+					Kind:        protocol.QuickFix,
+					Diagnostics: []protocol.Diagnostic{d},
+					Edit: &protocol.WorkspaceEdit{
+						Changes: map[protocol.DocumentURI][]protocol.TextEdit{
+							params.TextDocument.URI: {
+								{
+									Range: protocol.Range{
+										Start: protocol.Position{Line: d.Range.Start.Line, Character: uint32(startChar)},
+										End:   protocol.Position{Line: d.Range.Start.Line, Character: uint32(startChar + len(matches[0]))},
+									},
+									NewText: fixedDate,
+								},
+							},
+						},
+					},
+				})
+			} else {
+				// 2. Attempt to find DD[/. ]MM[/. ]YYYY
+				reEur := regexp.MustCompile(`(\d{2})[/. ](\d{2})[/. ](\d{4})`)
+				if matches := reEur.FindStringSubmatch(line); matches != nil {
+					fixedDate := fmt.Sprintf("%s-%s-%s", matches[3], matches[2], matches[1])
+					startChar := strings.Index(line, matches[0])
+					actions = append(actions, protocol.CodeAction{
+						Title:       "Fix European date format to YYYY-MM-DD",
+						Kind:        protocol.QuickFix,
+						Diagnostics: []protocol.Diagnostic{d},
+						Edit: &protocol.WorkspaceEdit{
+							Changes: map[protocol.DocumentURI][]protocol.TextEdit{
+								params.TextDocument.URI: {
+									{
+										Range: protocol.Range{
+											Start: protocol.Position{Line: d.Range.Start.Line, Character: uint32(startChar)},
+											End:   protocol.Position{Line: d.Range.Start.Line, Character: uint32(startChar + len(matches[0]))},
+										},
+										NewText: fixedDate,
+									},
+								},
+							},
+						},
+					})
+				}
+			}
+
+		case CodeLowercaseCallsign:
+			// "Uppercase callsign"
+			lines := strings.Split(doc.Text, "\n")
+			if int(d.Range.Start.Line) < len(lines) {
+				line := lines[d.Range.Start.Line]
+				call := line[d.Range.Start.Character:d.Range.End.Character]
+				actions = append(actions, protocol.CodeAction{
+					Title:       fmt.Sprintf("Uppercase callsign '%s'", call),
+					Kind:        protocol.QuickFix,
+					Diagnostics: []protocol.Diagnostic{d},
+					Edit: &protocol.WorkspaceEdit{
+						Changes: map[protocol.DocumentURI][]protocol.TextEdit{
+							params.TextDocument.URI: {
+								{
+									Range:   d.Range,
+									NewText: strings.ToUpper(call),
+								},
+							},
+						},
+					},
+				})
+			}
+
+		case CodeMissingMyCall:
+			// "Insert missing mycall header"
+			actions = append(actions, protocol.CodeAction{
+				Title:       "Insert missing 'mycall' header",
+				Kind:        protocol.QuickFix,
+				Diagnostics: []protocol.Diagnostic{d},
+				Edit: &protocol.WorkspaceEdit{
+					Changes: map[protocol.DocumentURI][]protocol.TextEdit{
+						params.TextDocument.URI: {
+							{
+								Range: protocol.Range{
+									Start: protocol.Position{Line: 0, Character: 0},
+									End:   protocol.Position{Line: 0, Character: 0},
+								},
+								NewText: "mycall MYCALL\n",
+							},
+						},
+					},
+				},
+			})
+		}
+	}
+
+	return actions, nil
 }
 
 func formatGrid(grid string) string {

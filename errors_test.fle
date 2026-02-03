@@ -23,3 +23,8 @@ ssb               # Just mode
 date 2026-02-03
 80m               # Just band
 1200 EA1ABC       # Warning: Mode not set
+
+# Fixable via CodeAction
+date 2026.02.05   # Error: Fixable date format
+date 31/12/2026   # Error: Fixable European date format
+1300 f4jxq        # Warning: Callsign should be uppercased

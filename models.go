@@ -91,11 +91,21 @@ const (
 	SeverityInfo
 )
 
+const (
+	// CodeInvalidDate indicates an invalid date format.
+	CodeInvalidDate = "invalid_date"
+	// CodeLowercaseCallsign indicates a callsign that should be uppercased.
+	CodeLowercaseCallsign = "lowercase_callsign"
+	// CodeMissingMyCall indicates a missing mycall header.
+	CodeMissingMyCall = "missing_mycall"
+)
+
 // Diagnostic represents a parsing error or warning.
 type Diagnostic struct {
 	Range    Range
 	Message  string
 	Severity Severity
+	Code     string // Added for Quick Fixes
 }
 
 // Range represents a range in a document.

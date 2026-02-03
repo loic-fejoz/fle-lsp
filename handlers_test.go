@@ -330,3 +330,149 @@ date 2026-02-01
 		t.Errorf("Expected formatted QSO '1200 EA1ABC #JN38qr', got %q", edits[0].NewText)
 	}
 }
+
+func TestHandler_CodeAction(t *testing.T) {
+	// 1. Missing mycall header & Lowercase callsign
+	content := "date 2026-02-01\n40m cw\n1200 ea1abc"
+	h, client := setupTestHandler(t, content)
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	// Verify diagnostics are present
+	diags := client.diagnostics[uri]
+	var missingMyCallDiag *protocol.Diagnostic
+	var lowercaseCallDiag *protocol.Diagnostic
+	for _, d := range diags {
+		if d.Code == CodeMissingMyCall {
+			missingMyCallDiag = &d
+		}
+		if d.Code == CodeLowercaseCallsign {
+			lowercaseCallDiag = &d
+		}
+	}
+	if missingMyCallDiag == nil {
+		t.Fatal("Expected CodeMissingMyCall diagnostic")
+	}
+	if lowercaseCallDiag == nil {
+		t.Fatal("Expected CodeLowercaseCallsign diagnostic")
+	}
+
+	params := &protocol.CodeActionParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+		Context: protocol.CodeActionContext{
+			Diagnostics: []protocol.Diagnostic{*missingMyCallDiag},
+		},
+	}
+
+	actions, err := h.CodeAction(context.Background(), params)
+	if err != nil {
+		t.Fatalf("CodeAction failed: %v", err)
+	}
+
+	found := false
+	for _, a := range actions {
+		if a.Title == "Insert missing 'mycall' header" {
+			found = true
+			if len(a.Edit.Changes[uri]) != 1 {
+				t.Errorf("Expected 1 edit, got %d", len(a.Edit.Changes[uri]))
+			}
+			if a.Edit.Changes[uri][0].NewText != "mycall MYCALL\n" {
+				t.Errorf("Expected 'mycall MYCALL\\n', got %q", a.Edit.Changes[uri][0].NewText)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("Quick fix for missing mycall not found")
+	}
+
+	// Test Lowercase callsign
+	params.Context.Diagnostics = []protocol.Diagnostic{*lowercaseCallDiag}
+	actions, err = h.CodeAction(context.Background(), params)
+	if err != nil {
+		t.Fatalf("CodeAction failed: %v", err)
+	}
+
+	found = false
+	for _, a := range actions {
+		if strings.Contains(a.Title, "Uppercase callsign") {
+			found = true
+			if a.Edit.Changes[uri][0].NewText != "EA1ABC" {
+				t.Errorf("Expected 'EA1ABC', got %q", a.Edit.Changes[uri][0].NewText)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("Quick fix for lowercase callsign not found")
+	}
+
+	// 2. Fix date format
+	content = "mycall F4JXQ\ndate 2026/02/01\n40m cw\n1200 EA1ABC"
+	h, client = setupTestHandler(t, content)
+	diags = client.diagnostics[uri]
+	var invalidDateDiag *protocol.Diagnostic
+	for _, d := range diags {
+		if d.Code == CodeInvalidDate {
+			invalidDateDiag = &d
+			break
+		}
+	}
+	if invalidDateDiag == nil {
+		t.Fatal("Expected CodeInvalidDate diagnostic")
+	}
+
+	params.Context.Diagnostics = []protocol.Diagnostic{*invalidDateDiag}
+	actions, err = h.CodeAction(context.Background(), params)
+	if err != nil {
+		t.Fatalf("CodeAction failed: %v", err)
+	}
+
+	found = false
+	for _, a := range actions {
+		if a.Title == "Fix date format to YYYY-MM-DD" {
+			found = true
+			if a.Edit.Changes[uri][0].NewText != "2026-02-01" {
+				t.Errorf("Expected '2026-02-01', got %q", a.Edit.Changes[uri][0].NewText)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("Quick fix for invalid date format not found")
+	}
+
+	// 3. Fix European date format
+	content = "mycall F4JXQ\ndate 31/12/2026\n40m cw\n1200 EA1ABC"
+	h, client = setupTestHandler(t, content)
+	diags = client.diagnostics[uri]
+	invalidDateDiag = nil
+	for _, d := range diags {
+		if d.Code == CodeInvalidDate {
+			invalidDateDiag = &d
+			break
+		}
+	}
+	if invalidDateDiag == nil {
+		t.Fatal("Expected CodeInvalidDate diagnostic for European date")
+	}
+
+	params.Context.Diagnostics = []protocol.Diagnostic{*invalidDateDiag}
+	actions, err = h.CodeAction(context.Background(), params)
+	if err != nil {
+		t.Fatalf("CodeAction failed: %v", err)
+	}
+
+	found = false
+	for _, a := range actions {
+		if a.Title == "Fix European date format to YYYY-MM-DD" {
+			found = true
+			if a.Edit.Changes[uri][0].NewText != "2026-12-31" {
+				t.Errorf("Expected '2026-12-31', got %q", a.Edit.Changes[uri][0].NewText)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("Quick fix for European date format not found")
+	}
+}

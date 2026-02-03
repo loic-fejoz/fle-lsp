@@ -10,12 +10,14 @@ import (
 )
 
 var (
-	dateRegex   = regexp.MustCompile(`(?i)^date\s+(\d{4}-\d{2}-\d{2})`)
-	simpleDate  = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})$`)
-	dayPlus     = regexp.MustCompile(`(?i)^day\s+\+`)
-	bandRegex   = regexp.MustCompile(`(?i)^(\d+(\.\d+)?(m|cm)|\d+\.\d+)$`)
-	modeRegex   = regexp.MustCompile(`(?i)^(CW|SSB|AM|FM|RTTY|FT8|PSK|FT4|DATA|JS8|MFSK)$`)
-	headerRegex = regexp.MustCompile(`(?i)^(mycall|mygrid|operator|nickname|qslmsg|mywwff|mysota|mypota)\s+(.+)$`)
+	dateRegex        = regexp.MustCompile(`(?i)^date\s+(\d{4}-\d{2}-\d{2})`)
+	simpleDate       = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})$`)
+	invalidDateRegex = regexp.MustCompile(`(?i)^date\s+(\d{4}[/. ]\d{2}[/. ]\d{2})`)
+	eurDateRegex     = regexp.MustCompile(`(?i)^date\s+(\d{2}[/. ]\d{2}[/. ]\d{4})`)
+	dayPlus          = regexp.MustCompile(`(?i)^day\s+\+`)
+	bandRegex        = regexp.MustCompile(`(?i)^(\d+(\.\d+)?(m|cm)|\d+\.\d+)$`)
+	modeRegex        = regexp.MustCompile(`(?i)^(CW|SSB|AM|FM|RTTY|FT8|PSK|FT4|DATA|JS8|MFSK)$`)
+	headerRegex      = regexp.MustCompile(`(?i)^(mycall|mygrid|operator|nickname|qslmsg|mywwff|mysota|mypota)\s+(.+)$`)
 
 	// QSO parts: optional time, mandatory call, optional reports, followed by extras
 	qsoLineRegex = regexp.MustCompile(`^(\d{2,4})?\s*([a-zA-Z0-9/]+)\s*(\d{1,3})?\s*(\d{1,3})?\s*(.*)$`)
@@ -69,6 +71,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 					Range:    Range{Start: Pos{lineNumber - 1, 0}, End: Pos{lineNumber - 1, len(rawLine)}},
 					Message:  fmt.Sprintf("Invalid date format: %v", err),
 					Severity: SeverityError,
+					Code:     CodeInvalidDate,
 				})
 			}
 			state.Date = parsedDate
@@ -89,6 +92,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 					Range:    Range{Start: Pos{lineNumber - 1, 0}, End: Pos{lineNumber - 1, len(rawLine)}},
 					Message:  fmt.Sprintf("Invalid date format: %v", err),
 					Severity: SeverityError,
+					Code:     CodeInvalidDate,
 				})
 			}
 			state.Date = parsedDate
@@ -98,6 +102,25 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			logbook.Tokens = append(logbook.Tokens, Token{
 				Range: Range{Start: Pos{lineNumber - 1, startOfLine + loc[0]}, End: Pos{lineNumber - 1, startOfLine + loc[1]}},
 				Type:  TokenDate,
+			})
+			continue
+		}
+		// Handle almost-correct dates for Quick Fix
+		if loc := invalidDateRegex.FindStringSubmatchIndex(line); loc != nil {
+			diagnostics = append(diagnostics, Diagnostic{
+				Range:    Range{Start: Pos{lineNumber - 1, 0}, End: Pos{lineNumber - 1, len(rawLine)}},
+				Message:  "Invalid date format: use YYYY-MM-DD",
+				Severity: SeverityError,
+				Code:     CodeInvalidDate,
+			})
+			continue
+		}
+		if loc := eurDateRegex.FindStringSubmatchIndex(line); loc != nil {
+			diagnostics = append(diagnostics, Diagnostic{
+				Range:    Range{Start: Pos{lineNumber - 1, 0}, End: Pos{lineNumber - 1, len(rawLine)}},
+				Message:  "Invalid date format: use YYYY-MM-DD",
+				Severity: SeverityError,
+				Code:     CodeInvalidDate,
 			})
 			continue
 		}
@@ -193,6 +216,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			Range:    Range{Start: Pos{0, 0}, End: Pos{0, 0}},
 			Message:  "Missing mandatory 'mycall' header",
 			Severity: SeverityWarning,
+			Code:     CodeMissingMyCall,
 		})
 	}
 
@@ -282,6 +306,16 @@ func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, []Diagno
 		Range: Range{Start: Pos{lineNum - 1, loc[4]}, End: Pos{lineNum - 1, loc[5]}},
 		Type:  TokenCallsign,
 	})
+
+	// Add warning for lowercase callsign
+	if strings.ToUpper(callsign) != callsign {
+		diags = append(diags, Diagnostic{
+			Range:    Range{Start: Pos{lineNum - 1, loc[4]}, End: Pos{lineNum - 1, loc[5]}},
+			Message:  fmt.Sprintf("Callsign should be uppercased: %s", callsign),
+			Severity: SeverityWarning,
+			Code:     CodeLowercaseCallsign,
+		})
+	}
 
 	if rstS != "" {
 		tokens = append(tokens, Token{

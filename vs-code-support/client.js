@@ -1,9 +1,13 @@
 const os = require('os');
+const path = require('path');
+const vscode = require('vscode');
+const { LanguageClient, TransportKind } = require('vscode-languageclient/node');
+
+let client;
 
 function activate(context) {
     // Detect binary name based on platform
     const platform = os.platform();
-    const arch = os.arch();
     let executableName = 'fle-lsp';
 
     if (platform === 'win32') {
@@ -27,7 +31,7 @@ function activate(context) {
     let clientOptions = {
         documentSelector: [{ scheme: 'file', language: 'fastlogentry' }],
         synchronize: {
-            fileEvents: workspace.createFileSystemWatcher('**/*.fle')
+            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.fle')
         }
     };
 

@@ -10,7 +10,7 @@ A high-performance [Language Server Protocol](https://microsoft.github.io/langua
 
 ### ⚡ TL;DR: Quick Start
 
-**What is it?** A developer tool that adds IDE-like features (errors, completions, formatting) to your FLE logging workflow.  
+**What is it?** A tool that adds IDE-like features (errors, completions, formatting) to your FLE logging workflow.  
 **Why use it?** Catch logging errors instantly, automate formatting, and navigate thousands of QSOs with ease.  
 **How to start?**
 
@@ -105,4 +105,4 @@ go test ./... # Run full test suite
 *   [LSP Specification](https://microsoft.github.io/language-server-protocol/)
 
 ---
-*Maintained by [loic-fejoz](https://github.com/loic-fejoz)*
+*Maintained by [F4JXQ](https://github.com/loic-fejoz)*
