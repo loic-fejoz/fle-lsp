@@ -26,6 +26,9 @@ var (
 	extraGridRegex    = regexp.MustCompile(`#([a-zA-Z0-9]+)`)
 	extraCommentRegex = regexp.MustCompile(`\<([^\>]+)\>`)
 	extraQSLRegex     = regexp.MustCompile(`\[([^\]]+)\]`)
+
+	reISODate = regexp.MustCompile(`(\d{4})[/. ](\d{2})[/. ](\d{2})`)
+	reEurDate = regexp.MustCompile(`(\d{2})[/. ](\d{2})[/. ](\d{4})`)
 )
 
 // ParseFLE parses the content of an FLE document and returns a Logbook, diagnostics, and any error.
@@ -250,6 +253,11 @@ func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, []Diagno
 		return QSO{}, nil, false
 	}
 
+	// Expect 5 submatches + full match = 6 pairs = 12 indices
+	if len(loc) < 12 {
+		return QSO{}, nil, false
+	}
+
 	rawTime := ""
 	if loc[2] != -1 {
 		rawTime = line[loc[2]:loc[3]]
@@ -274,11 +282,15 @@ func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, []Diagno
 	// 1. Validate minutes (00-59)
 	if rawTime != "" && len(rawTime) >= 2 {
 		minsStr := rawTime[len(rawTime)-2:]
-		mins, _ := strconv.Atoi(minsStr)
-		if mins > 59 {
+		mins, err := strconv.Atoi(minsStr)
+		if err != nil || mins > 59 {
+			msg := fmt.Sprintf("Invalid minutes: %s", minsStr)
+			if err != nil {
+				msg = fmt.Sprintf("Invalid minutes format: %s", minsStr)
+			}
 			diags = append(diags, Diagnostic{
 				Range:    Range{Start: Pos{lineNum - 1, loc[2]}, End: Pos{lineNum - 1, loc[3]}},
-				Message:  fmt.Sprintf("Invalid minutes: %s", minsStr),
+				Message:  msg,
 				Severity: SeverityError,
 			})
 		}
@@ -401,8 +413,16 @@ func expandTime(last, current string) string {
 	if len(current) == 4 {
 		return current
 	}
-	if last == "" {
-		return strings.Repeat("0000", 1)[:4-len(current)] + current
+	if last == "" || len(last) < 4 {
+		// Defensive fallback: if last time context is missing or invalid,
+		// and we have a partial current time, we can't reliably expand it.
+		// Pad current with zeros is a safe best-effort (though likely wrong context).
+		return fmt.Sprintf("%04s", current)
+	}
+
+	// Double check bounds before slicing (safe based on logic above, but explicit is better)
+	if 4-len(current) < 0 || 4-len(current) > len(last) {
+		return current
 	}
 
 	// Replace trailing digits of last time

@@ -3,7 +3,6 @@ package flelsp
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -385,8 +384,12 @@ func (h *Handler) DocumentSymbol(_ context.Context, params *protocol.DocumentSym
 
 		// Expand ranges
 		daySym.Range.End = qsoRange.End
-		monthSym.Range.End = qsoRange.End
-		yearSym.Range.End = qsoRange.End
+		if monthSym != nil {
+			monthSym.Range.End = qsoRange.End
+		}
+		if yearSym != nil {
+			yearSym.Range.End = qsoRange.End
+		}
 	}
 
 	// Final append
@@ -720,6 +723,9 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 	if int(lineNum) < len(docLines) {
 		currentLine = docLines[lineNum]
 	}
+	if int(charPos) > len(currentLine) {
+		charPos = uint32(len(currentLine))
+	}
 	trimmedPrefix := strings.TrimSpace(currentLine[:charPos])
 
 	// Context: Start of line
@@ -860,8 +866,7 @@ func (h *Handler) CodeAction(_ context.Context, params *protocol.CodeActionParam
 			}
 
 			// 1. Attempt to find YYYY[/. ]MM[/. ]DD
-			reISO := regexp.MustCompile(`(\d{4})[/. ](\d{2})[/. ](\d{2})`)
-			if matches := reISO.FindStringSubmatch(line); matches != nil {
+			if matches := reISODate.FindStringSubmatch(line); matches != nil {
 				fixedDate := fmt.Sprintf("%s-%s-%s", matches[1], matches[2], matches[3])
 				startChar := strings.Index(line, matches[0])
 				actions = append(actions, protocol.CodeAction{
@@ -884,8 +889,7 @@ func (h *Handler) CodeAction(_ context.Context, params *protocol.CodeActionParam
 				})
 			} else {
 				// 2. Attempt to find DD[/. ]MM[/. ]YYYY
-				reEur := regexp.MustCompile(`(\d{2})[/. ](\d{2})[/. ](\d{4})`)
-				if matches := reEur.FindStringSubmatch(line); matches != nil {
+				if matches := reEurDate.FindStringSubmatch(line); matches != nil {
 					fixedDate := fmt.Sprintf("%s-%s-%s", matches[3], matches[2], matches[1])
 					startChar := strings.Index(line, matches[0])
 					actions = append(actions, protocol.CodeAction{
@@ -914,6 +918,9 @@ func (h *Handler) CodeAction(_ context.Context, params *protocol.CodeActionParam
 			lines := strings.Split(doc.Text, "\n")
 			if int(d.Range.Start.Line) < len(lines) {
 				line := lines[d.Range.Start.Line]
+				if int(d.Range.End.Character) > len(line) {
+					continue
+				}
 				call := line[d.Range.Start.Character:d.Range.End.Character]
 				actions = append(actions, protocol.CodeAction{
 					Title:       fmt.Sprintf("Uppercase callsign '%s'", call),

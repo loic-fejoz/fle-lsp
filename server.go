@@ -30,7 +30,7 @@ func StartServer(logger *zap.Logger) {
 	)
 
 	if err != nil {
-		logger.Sugar().Fatalf("while initializing handler: %w", err)
+		logger.Sugar().Fatalf("while initializing handler: %v", err)
 	}
 
 	conn.Go(ctx, protocol.ServerHandler(

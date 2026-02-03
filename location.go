@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -100,27 +101,47 @@ func GetGPSDGrid() string {
 		return ""
 	}
 
-	scanner := bufio.NewScanner(conn)
-	// Read lines until we get a TPV with 3D or 2D fix
-	// Set a deadline
-	_ = conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+	// Use a LimitedReader to prevent unbounded memory usage if gpsd goes rogue
+	// 4096 bytes should be enough for any TPV or VERSION message.
+	limitReader := io.LimitReader(conn, 4096)
+	decoder := json.NewDecoder(limitReader)
+	decoder.DisallowUnknownFields()
 
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if !strings.Contains(string(line), "\"class\":\"TPV\"") {
+	for {
+		// GPSD sends various message types (VERSION, DEVICES, WATCH, TPV).
+		// We use json.RawMessage to first capture the message and inspect its "class".
+
+		var raw json.RawMessage
+		if err := decoder.Decode(&raw); err != nil {
+			// standard io.EOF or error
+			break
+		}
+
+		// First, check the class roughly
+		var envelope struct {
+			Class string `json:"class"`
+			// We don't strictly check envelope fields here, just look for class
+		}
+		if err := json.Unmarshal(raw, &envelope); err != nil {
 			continue
 		}
 
-		var data struct {
-			Class string  `json:"class"`
-			Mode  int     `json:"mode"`
-			Lat   float64 `json:"lat"`
-			Lon   float64 `json:"lon"`
-		}
-		if err := json.Unmarshal(line, &data); err == nil {
-			// Mode 2=2D, 3=3D
-			if data.Mode >= 2 {
-				return LatLonToGrid(data.Lat, data.Lon)
+		if envelope.Class == "TPV" {
+			// Now decode into generic struct.
+			// We removed DisallowUnknownFields() because it caused regressions with various gpsd versions
+			// that send extra fields. We still benefit from LimitReader preventing DoS.
+			var data struct {
+				Class  string  `json:"class"`
+				Device string  `json:"device"`
+				Mode   int     `json:"mode"`
+				Lat    float64 `json:"lat"`
+				Lon    float64 `json:"lon"`
+			}
+
+			if err := json.Unmarshal(raw, &data); err == nil {
+				if data.Mode >= 2 {
+					return LatLonToGrid(data.Lat, data.Lon)
+				}
 			}
 		}
 	}
@@ -149,11 +170,19 @@ func GetGPredictGrids(qthPath string) (name string, grid string) {
 		val := strings.TrimSpace(parts[1])
 		switch strings.ToUpper(parts[0]) {
 		case "LAT":
-			lat, _ = strconv.ParseFloat(val, 64)
+			var err error
+			lat, err = strconv.ParseFloat(val, 64)
+			if err != nil {
+				continue
+			}
 		case "LON":
 			// GPredict uses East positive, North positive in its .qth files
 			// based on internal consistency check with user's Saverne file.
-			lon, _ = strconv.ParseFloat(val, 64)
+			var err error
+			lon, err = strconv.ParseFloat(val, 64)
+			if err != nil {
+				continue
+			}
 		}
 	}
 
@@ -181,15 +210,21 @@ func GetXastirGrid(cnfPath string) string {
 	for scanner.Scan() {
 		line := scanner.Text()
 		if matches := reLat.FindStringSubmatch(line); matches != nil {
-			deg, _ := strconv.ParseFloat(matches[1], 64)
-			minutes, _ := strconv.ParseFloat(matches[2], 64)
+			deg, err1 := strconv.ParseFloat(matches[1], 64)
+			minutes, err2 := strconv.ParseFloat(matches[2], 64)
+			if err1 != nil || err2 != nil {
+				continue
+			}
 			lat = deg + minutes/60
 			if matches[3] == "S" {
 				lat = -lat
 			}
 		} else if matches := reLon.FindStringSubmatch(line); matches != nil {
-			deg, _ := strconv.ParseFloat(matches[1], 64)
-			minutes, _ := strconv.ParseFloat(matches[2], 64)
+			deg, err1 := strconv.ParseFloat(matches[1], 64)
+			minutes, err2 := strconv.ParseFloat(matches[2], 64)
+			if err1 != nil || err2 != nil {
+				continue
+			}
 			lon = deg + minutes/60
 			if matches[3] == "W" {
 				lon = -lon
