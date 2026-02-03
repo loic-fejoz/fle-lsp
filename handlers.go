@@ -421,6 +421,9 @@ func (h *Handler) Formatting(ctx context.Context, params *protocol.DocumentForma
 		if loc := headerRegex.FindStringSubmatchIndex(trimmed); loc != nil {
 			key := strings.ToLower(trimmed[loc[2]:loc[3]])
 			val := trimmed[loc[4]:loc[5]]
+			if key == "mygrid" {
+				val = formatGrid(val)
+			}
 			formatted = fmt.Sprintf("%s %s", key, val)
 		} else if loc := dateRegex.FindStringSubmatchIndex(trimmed); loc != nil {
 			// 2. Dates "date YYYY-MM-DD"
@@ -455,7 +458,7 @@ func (h *Handler) Formatting(ctx context.Context, params *protocol.DocumentForma
 				}
 				formatted = strings.Join(parts, " ")
 			} else if loc := qsoLineRegex.FindStringSubmatchIndex(trimmed); loc != nil {
-				// 6. QSO Line Alignment
+				// 6. QSO Line Normalization (without fixed-width alignment)
 				rawTime := ""
 				if loc[2] != -1 {
 					rawTime = trimmed[loc[2]:loc[3]]
@@ -472,19 +475,29 @@ func (h *Handler) Formatting(ctx context.Context, params *protocol.DocumentForma
 				extras := ""
 				if loc[10] != -1 {
 					extras = trimmed[loc[10]:loc[11]]
+					// Normalize grid in extras (e.g., #JN38QR -> #JN38qr)
+					extras = extraGridRegex.ReplaceAllStringFunc(extras, func(m string) string {
+						return "#" + formatGrid(m[1:])
+					})
 				}
 
-				// Format to fixed columns
-				// Time (5) | Call (16) | RST_S (4) | RST_R (4) | Extras
-				timeCol := fmt.Sprintf("%-5s", rawTime)
-				if rawTime == "" {
-					timeCol = "     "
+				// Join with single spaces
+				parts := []string{}
+				if rawTime != "" {
+					parts = append(parts, rawTime)
 				}
-				callCol := fmt.Sprintf("%-16s", callsign)
-				rstSCol := fmt.Sprintf("%-4s", rstS)
-				rstRCol := fmt.Sprintf("%-4s", rstR)
+				parts = append(parts, callsign)
+				if rstS != "" {
+					parts = append(parts, rstS)
+				}
+				if rstR != "" {
+					parts = append(parts, rstR)
+				}
+				if extras != "" {
+					parts = append(parts, extras)
+				}
 
-				formatted = strings.TrimRight(timeCol+callCol+rstSCol+rstRCol+extras, " ")
+				formatted = strings.Join(parts, " ")
 			}
 		}
 
@@ -623,4 +636,15 @@ func (h *Handler) publishDiagnostics(ctx context.Context, uri protocol.DocumentU
 		URI:         uri,
 		Diagnostics: pDiags,
 	})
+}
+
+func formatGrid(grid string) string {
+	if len(grid) < 2 {
+		return strings.ToUpper(grid)
+	}
+	res := strings.ToUpper(grid)
+	if len(res) > 4 {
+		res = res[:4] + strings.ToLower(res[4:])
+	}
+	return res
 }
