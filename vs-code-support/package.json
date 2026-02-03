@@ -1,0 +1,19 @@
+{
+  "name": "fle_lsp",
+  "displayName": "Fast Log Entry LSP",
+  "description": "Language support for Fast Log Entry",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.82.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "fastlogentry",
+      "aliases": ["FastLogEntry", "FLE"],
+      "extensions": [".fle", ".txt"]
+    }]
+  }
+}
