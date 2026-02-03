@@ -73,11 +73,11 @@ func setupTestHandler(t *testing.T, content string) (*Handler, *mockClient) {
 }
 
 func TestHandler_Hover(t *testing.T) {
-	content := "mycall F4JXQ\ndate 2026-02-01\n40m cw\n1200 EA1ABC 599 599"
+	content := "mycall F4JXQ\ndate 2026-02-01\n40m cw\n1200 EA1ABC 599 599\n1205 EA1ABC 579 589"
 	h, _ := setupTestHandler(t, content)
 	uri := protocol.DocumentURI("file:///test.fle")
 
-	// Hover over the QSO line (line 3, 0-indexed)
+	// Hover over the first QSO line (line 3, 0-indexed)
 	params := &protocol.HoverParams{
 		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
 			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
@@ -96,6 +96,11 @@ func TestHandler_Hover(t *testing.T) {
 	wantSub := "EA1ABC"
 	if !strings.Contains(hover.Contents.Value, wantSub) {
 		t.Errorf("Hover content %q does not contain %q", hover.Contents.Value, wantSub)
+	}
+
+	wantCount := "**Times Contacted:** 2"
+	if !strings.Contains(hover.Contents.Value, wantCount) {
+		t.Errorf("Hover content %q does not contain %q", hover.Contents.Value, wantCount)
 	}
 }
 
