@@ -1,0 +1,98 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "Fast Log Entry",
+    "scopeName": "source.fastlogentry",
+    "patterns": [
+        {
+            "include": "#comment_hash"
+        },
+        {
+            "include": "#comment_curly"
+        },
+        {
+            "include": "#header_keywords"
+        },
+        {
+            "include": "#date"
+        },
+        {
+            "include": "#flow_control"
+        },
+        {
+            "include": "#qso_line"
+        }
+    ],
+    "repository": {
+        "comment_hash": {
+            "patterns": [
+                {
+                    "name": "comment.line.number-sign.fastlogentry",
+                    "match": "#.*$"
+                }
+            ]
+        },
+        "comment_curly": {
+            "patterns": [
+                {
+                    "name": "comment.block.fastlogentry",
+                    "begin": "\\{",
+                    "end": "\\}"
+                }
+            ]
+        },
+        "header_keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.other.header.fastlogentry",
+                    "match": "(?i)^(mycall|mygrid|operator|nickname|qslmsg|mywwff|mysota|mypota)\\b"
+                }
+            ]
+        },
+        "date": {
+            "patterns": [
+                {
+                    "name": "constant.other.date.fastlogentry",
+                    "match": "(?i)\\b(date\\s+)?\\d{4}-\\d{2}-\\d{2}\\b"
+                }
+            ]
+        },
+        "flow_control": {
+            "patterns": [
+                {
+                    "name": "keyword.control.flow.fastlogentry",
+                    "match": "(?i)\\b(day\\s+\\+|\\d+m|\\d+\\.\\d+|CW|SSB|AM|FM|RTTY|FT8|PSK|FT4|DATA|JS8|MFSK)\\b"
+                }
+            ]
+        },
+        "qso_line": {
+            "patterns": [
+                {
+                    "name": "entity.name.callsign.fastlogentry",
+                    "match": "\\b[a-zA-Z0-9/]{3,}\\b"
+                },
+                {
+                    "name": "constant.numeric.time.fastlogentry",
+                    "match": "\\b\\d{2,4}\\b"
+                },
+                {
+                    "name": "string.other.comment.angle.fastlogentry",
+                    "begin": "<",
+                    "end": ">"
+                },
+                {
+                    "name": "string.other.comment.square.fastlogentry",
+                    "begin": "\\[",
+                    "end": "\\]"
+                },
+                {
+                    "name": "variable.parameter.extra.name.fastlogentry",
+                    "match": "@\\S+"
+                },
+                {
+                    "name": "variable.parameter.extra.grid.fastlogentry",
+                    "match": "#\\S+"
+                }
+            ]
+        }
+    }
+}

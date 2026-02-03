@@ -24,6 +24,7 @@ go build -o fle-lsp ./cmd/main.go
 4. Press `F5` to start a new "Extension Development Host" window.
 5. In the new window, open any `.fle` file (or create one).
 6. You should see the LSP status and real-time diagnostics!
+7. **Syntax Highlighting**: To get the original FLE look, press `Ctrl+K Ctrl+T` and select the **FLE Original** theme.
 
 ## Resources
 

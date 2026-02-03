@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -60,6 +61,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 				})
 			}
 			state.Date = parsedDate
+			state.LastTime = ""
 			continue
 		}
 		if m := simpleDate.FindStringSubmatch(line); m != nil {
@@ -72,6 +74,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 				})
 			}
 			state.Date = parsedDate
+			state.LastTime = ""
 			continue
 		}
 		if dayPlus.MatchString(line) {
@@ -83,6 +86,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 				})
 			} else {
 				state.Date = state.Date.AddDate(0, 0, strings.Count(line, "+"))
+				state.LastTime = ""
 			}
 			continue
 		}
@@ -104,7 +108,8 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 		}
 
 		// 4. Fallback to QSO entry
-		if qso, ok := parseQSOLine(line, state, lineNumber); ok {
+		if qso, lineDiags, ok := parseQSOLine(line, state, lineNumber); ok {
+			diagnostics = append(diagnostics, lineDiags...)
 			// Validate QSO context
 			if state.Date.IsZero() {
 				diagnostics = append(diagnostics, Diagnostic{
@@ -171,10 +176,10 @@ func updateHeader(h *Header, key, value string) {
 	}
 }
 
-func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, bool) {
+func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, []Diagnostic, bool) {
 	m := qsoLineRegex.FindStringSubmatch(line)
 	if m == nil {
-		return QSO{}, false
+		return QSO{}, nil, false
 	}
 
 	rawTime := m[1]
@@ -183,8 +188,33 @@ func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, bool) {
 	rstR := m[4]
 	extras := m[5]
 
+	var diags []Diagnostic
+
+	// 1. Validate minutes (00-59)
+	if len(rawTime) >= 2 {
+		minsStr := rawTime[len(rawTime)-2:]
+		mins, _ := strconv.Atoi(minsStr)
+		if mins > 59 {
+			diags = append(diags, Diagnostic{
+				Range:    Range{Start: Pos{lineNum - 1, 0}, End: Pos{lineNum - 1, len(rawTime)}},
+				Message:  fmt.Sprintf("Invalid minutes: %s", minsStr),
+				Severity: SeverityError,
+			})
+		}
+	}
+
 	// Time expansion logic
 	expandedTime := expandTime(state.LastTime, rawTime)
+
+	// 2. Check for monotonic time
+	if state.LastTime != "" && expandedTime < state.LastTime {
+		diags = append(diags, Diagnostic{
+			Range:    Range{Start: Pos{lineNum - 1, 0}, End: Pos{lineNum - 1, len(rawTime)}},
+			Message:  fmt.Sprintf("Time goes backwards: %s < %s", expandedTime, state.LastTime),
+			Severity: SeverityWarning,
+		})
+	}
+
 	state.LastTime = expandedTime
 
 	ts, _ := time.Parse("2006-01-02 1504", state.Date.Format("2006-01-02")+" "+expandedTime)
@@ -225,7 +255,7 @@ func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, bool) {
 		qso.QSLMsg = q[1]
 	}
 
-	return qso, true
+	return qso, diags, true
 }
 
 func expandTime(last, current string) string {

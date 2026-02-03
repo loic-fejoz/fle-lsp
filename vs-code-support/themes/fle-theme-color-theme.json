@@ -1,0 +1,82 @@
+{
+    "name": "FLE Original",
+    "type": "light",
+    "colors": {
+        "editor.background": "#ffffff",
+        "editor.foreground": "#000000",
+        "editorLineNumber.foreground": "#aaaaaa",
+        "editorIndentGuide.background": "#eeeeee"
+    },
+    "tokenColors": [
+        {
+            "name": "Header Keywords",
+            "scope": "keyword.other.header.fastlogentry",
+            "settings": {
+                "foreground": "#cc0000"
+            }
+        },
+        {
+            "name": "Date",
+            "scope": "constant.other.date.fastlogentry",
+            "settings": {
+                "foreground": "#0000ff"
+            }
+        },
+        {
+            "name": "Flow Control (Bands, Modes)",
+            "scope": "keyword.control.flow.fastlogentry",
+            "settings": {
+                "foreground": "#cc0000"
+            }
+        },
+        {
+            "name": "Times",
+            "scope": "constant.numeric.time.fastlogentry",
+            "settings": {
+                "foreground": "#00aa00",
+                "fontStyle": "bold"
+            }
+        },
+        {
+            "name": "Callsigns",
+            "scope": "entity.name.callsign.fastlogentry",
+            "settings": {
+                "foreground": "#000000",
+                "fontStyle": "bold"
+            }
+        },
+        {
+            "name": "Comments Curly",
+            "scope": "comment.block.fastlogentry",
+            "settings": {
+                "foreground": "#00aa00",
+                "fontStyle": "italic"
+            }
+        },
+        {
+            "name": "Comments Angle",
+            "scope": "string.other.comment.angle.fastlogentry",
+            "settings": {
+                "foreground": "#aa00aa"
+            }
+        },
+        {
+            "name": "Comments Hash",
+            "scope": "comment.line.number-sign.fastlogentry",
+            "settings": {
+                "foreground": "#00008b",
+                "fontStyle": "bold"
+            }
+        },
+        {
+            "name": "Extras (Name, Grid)",
+            "scope": [
+                "variable.parameter.extra.name.fastlogentry",
+                "variable.parameter.extra.grid.fastlogentry"
+            ],
+            "settings": {
+                "foreground": "#8b4513"
+            }
+        }
+    ]
+}

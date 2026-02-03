@@ -23,6 +23,20 @@
         ],
         "configuration": "./language-configuration.json"
       }
+    ],
+    "grammars": [
+      {
+        "language": "fastlogentry",
+        "scopeName": "source.fastlogentry",
+        "path": "./syntaxes/fastlogentry.tmLanguage.json"
+      }
+    ],
+    "themes": [
+      {
+        "label": "FLE Original",
+        "uiTheme": "vs",
+        "path": "./themes/fle-theme-color-theme.json"
+      }
     ]
   },
   "dependencies": {

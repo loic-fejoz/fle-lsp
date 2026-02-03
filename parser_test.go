@@ -110,3 +110,52 @@ func TestDiagnostics(t *testing.T) {
 		t.Error("Expected warning about missing band")
 	}
 }
+
+func TestTimeDiagnostics(t *testing.T) {
+	content := `
+mycall F4JXQ
+date 2023-10-26
+40m CW
+1235 F6DCD
+1278 F4LAA
+1230 AB1CD
+`
+	_, diags, _ := ParseFLE(content)
+
+	foundMinuteError := false
+	foundBackwardsWarning := false
+
+	for _, d := range diags {
+		if strings.Contains(d.Message, "Invalid minutes") {
+			foundMinuteError = true
+		}
+		if strings.Contains(d.Message, "goes backwards") {
+			foundBackwardsWarning = true
+		}
+	}
+
+	if !foundMinuteError {
+		t.Error("Expected error for invalid minutes (1278)")
+	}
+	if !foundBackwardsWarning {
+		t.Error("Expected warning for time going backwards (1230 after 1278/1235)")
+	}
+}
+
+func TestDateChangeResetsMonotonicity(t *testing.T) {
+	content := `
+mycall F4JXQ
+date 2024-08-03
+1200 F1SLS @Stan
+
+date 2024-09-22
+0915 F5NWY/M
+`
+	_, diags, _ := ParseFLE(content)
+
+	for _, d := range diags {
+		if strings.Contains(d.Message, "goes backwards") {
+			t.Errorf("Unexpected monotonicity warning across different dates: %s", d.Message)
+		}
+	}
+}
