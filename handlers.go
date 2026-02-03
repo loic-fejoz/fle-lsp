@@ -257,7 +257,9 @@ func (h *Handler) Hover(_ context.Context, params *protocol.HoverParams) (*proto
 		}
 	}
 
-	content := fmt.Sprintf("**QSO Context**\n\n* **Date (UTC):** %s\n* **Time (UTC):** %s\n* **Local Time:** %s (%s)\n* **Band:** %s\n* **Mode:** %s\n* **Call:** %s\n* **Times Contacted:** %d",
+	country := LookupCountry(foundQSO.Callsign)
+
+	content := fmt.Sprintf("**QSO Context**\n\n* **Date (UTC):** %s\n* **Time (UTC):** %s\n* **Local Time:** %s (%s)\n* **Band:** %s\n* **Mode:** %s\n* **Call:** %s\n* **Country:** %s\n* **Times Contacted:** %d",
 		foundQSO.Timestamp.Format("2006-01-02"),
 		foundQSO.Timestamp.Format("15:04"),
 		localTime.Format("15:04"),
@@ -265,6 +267,7 @@ func (h *Handler) Hover(_ context.Context, params *protocol.HoverParams) (*proto
 		foundQSO.Band,
 		foundQSO.Mode,
 		foundQSO.Callsign,
+		country,
 		contactCount,
 	)
 

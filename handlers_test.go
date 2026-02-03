@@ -98,6 +98,11 @@ func TestHandler_Hover(t *testing.T) {
 		t.Errorf("Hover content %q does not contain %q", hover.Contents.Value, wantSub)
 	}
 
+	wantCountry := "**Country:** Spain"
+	if !strings.Contains(hover.Contents.Value, wantCountry) {
+		t.Errorf("Hover content %q does not contain %q", hover.Contents.Value, wantCountry)
+	}
+
 	wantCount := "**Times Contacted:** 2"
 	if !strings.Contains(hover.Contents.Value, wantCount) {
 		t.Errorf("Hover content %q does not contain %q", hover.Contents.Value, wantCount)
