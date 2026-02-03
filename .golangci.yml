@@ -1,13 +1,13 @@
+version: "2"
 run:
   tests: true
-  exclude-dirs:
-    - third_party
-    - builtin
-    - examples
+  timeout: 5m
 linters:
   enable:
     - misspell
     - revive
+formatters:
+  enable:
     - gofmt
 issues:
   max-issues-per-linter: 0
