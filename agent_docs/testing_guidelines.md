@@ -27,9 +27,12 @@ go tool cover -html=coverage.out
 
 ## CI/CD Enforcement
 The CI/CD pipeline (`.github/workflows/go.yml`) enforces the following:
-- **Linting**: All code must pass `golangci-lint` with the rules defined in `.golangci.yml`.
+- **Linting**: All code must pass **golangci-lint v2** (`.golangci.yml` must use `version: "2"`).
 - **Coverage**: A minimum statement coverage of **70%** is required.
-- **Reporting**: Coverage reports are automatically uploaded to Codecov.
+- **Reporting**: Coverage reports are uploaded to Codecov.
+
+### 2. Extension Release (`extension-release.yml`)
+- Automates multi-platform packaging (`linux-x64`, `win32-x64`, `darwin-*`) into bundled `.vsix` files upon tag creation.
 
 ## Performance
 Tests should be fast. Use `testing.Short()` to skip long-running simulations if applicable.

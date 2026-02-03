@@ -26,6 +26,7 @@ This project implement the Language Server Protocol (LSP) for Fast Log Entry (FL
 
 ## Parsing Strategy
 FLE is line-oriented and stateful. The parser will process documents line-by-line, maintaining a state object to track the active date, band, and mode. Shorthand times will be expanded based on the previous QSO's time.
+
 ```mermaid
 graph TD
     A[Editor] -- JSON-RPC --> B[Stdin]
@@ -35,4 +36,14 @@ graph TD
     E -- Response --> D
     D --> F[Stdout]
     F -- JSON-RPC --> A
+    D --> F[Stdout]
+    F -- JSON-RPC --> A
 ```
+
+## Advanced Features
+
+### FoldingRanges
+Uses a hierarchical strategy to group log entries by Year, then Month, then Day. This allows users to collapse entire sections of their logbook based on the chronological structure of FLE files.
+
+### Formatting (Full & Range)
+Implemented via a shared `normalizeLine` path. `RangeFormatting` applies this logic selectively to specific line indices, providing high-performance formatting without re-scanning the whole file.
