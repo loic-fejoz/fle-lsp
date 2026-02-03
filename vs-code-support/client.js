@@ -1,12 +1,23 @@
-const { ExtensionContext, languages, workspace } = require('vscode');
-const { LanguageClient, ServerOptions, TransportKind } = require('vscode-languageclient/node');
-const path = require('path');
-
-let client;
+const os = require('os');
 
 function activate(context) {
-    // Binary path - assumed to be built in the root
-    let serverModule = context.asAbsolutePath(path.join('..', 'fle-lsp'));
+    // Detect binary name based on platform
+    const platform = os.platform();
+    const arch = os.arch();
+    let executableName = 'fle-lsp';
+
+    if (platform === 'win32') {
+        executableName += '.exe';
+    }
+
+    // Binary path - look into 'bin' subdirectory of the extension
+    let serverModule = context.asAbsolutePath(path.join('bin', executableName));
+
+    // Fallback for development if 'bin' doesn't exist (look in root or parent)
+    // This is useful for F5 development in the repo itself
+    if (!require('fs').existsSync(serverModule)) {
+        serverModule = context.asAbsolutePath(path.join('..', executableName));
+    }
 
     let serverOptions = {
         run: { command: serverModule, transport: TransportKind.stdio },

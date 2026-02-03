@@ -3,6 +3,15 @@
   "displayName": "FLE LSP Client",
   "description": "FLE Language Support",
   "version": "0.0.1",
+  "publisher": "loic-fejoz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/loic-fejoz/fle-lsp"
+  },
+  "homepage": "https://github.com/loic-fejoz/fle-lsp/tree/master/vs-code-support",
+  "bugs": {
+    "url": "https://github.com/loic-fejoz/fle-lsp/issues"
+  },
   "engines": {
     "vscode": "^1.75.0"
   },
@@ -10,6 +19,10 @@
     "onLanguage:fastlogentry"
   ],
   "main": "./client.js",
+  "scripts": {
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
   "contributes": {
     "languages": [
       {
@@ -41,5 +54,8 @@
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.0.0"
   }
 }

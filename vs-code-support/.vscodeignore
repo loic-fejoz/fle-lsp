@@ -1,0 +1,23 @@
+.vscode/**
+.vscode-test/**
+out/**
+node_modules/**
+src/**
+test/**
+scripts/**
+!bin/
+!bin/**
+.gitignore
+.vscodeignore
+tsconfig.json
+jsconfig.json
+vsc-extension-quickstart.md
+package-lock.json
+CHANGELOG.md
+CONTRIBUTING.md
+README.md
+# We keep CHANGELOG.md, CONTRIBUTING.md, and README.md usually in the package
+# but if we want to minimize size we can exclude them. 
+# VS Code Marketplace uses README.md for the extension page.
+# So we SHOULD NOT ignore README.md if we want it displayed.
+# I'll keep them.

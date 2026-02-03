@@ -32,3 +32,14 @@ Thank you for considering contributing to the FLE LSP Client!
 
 - Unit tests for the LSP server are located in the root directory.
 - Run them with: `go test ./...`
+
+## Publishing
+
+To package the extension into a `.vsix` file:
+1.  Navigate to `vs-code-support/`.
+2.  Run `npm run package`.
+3.  This will generate a `fle-lsp-client-X.X.X.vsix` file which can be shared or uploaded to the marketplace.
+
+To publish directly to the Visual Studio Marketplace:
+1.  Ensure you have a Personal Access Token (PAT) from Azure DevOps.
+2.  Run `npm run publish -- --pat <YOUR_PAT>`.

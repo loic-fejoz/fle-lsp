@@ -1,0 +1,92 @@
+name: Publish Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-package:
+    name: Package Extension
+    strategy:
+      matrix:
+        include:
+          - target: linux-x64
+            os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+            executable: fle-lsp
+          - target: win32-x64
+            os: ubuntu-latest
+            goos: windows
+            goarch: amd64
+            executable: fle-lsp.exe
+          - target: darwin-x64
+            os: ubuntu-latest
+            goos: darwin
+            goarch: amd64
+            executable: fle-lsp
+          - target: darwin-arm64
+            os: ubuntu-latest
+            goos: darwin
+            goarch: arm64
+            executable: fle-lsp
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          cache: true
+
+      - name: Build LSP Server
+        run: |
+          mkdir -p vs-code-support/bin
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o vs-code-support/bin/${{ matrix.executable }} ./cmd/main.go
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        working-directory: ./vs-code-support
+        run: npm install
+
+      - name: Package Extension
+        working-directory: ./vs-code-support
+        run: npx vsce package --target ${{ matrix.target }} -o fle-lsp-client-${{ matrix.target }}.vsix
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: vsix-packages
+          path: vs-code-support/*.vsix
+
+  release:
+    name: Create GitHub Release
+    needs: build-and-package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: vsix-packages
+          path: ./release
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./release/*.vsix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Optional: Publish to Marketplace
+      # - name: Publish to Marketplace
+      #   working-directory: ./vs-code-support
+      #   run: npx vsce publish -p ${{ secrets.VSCE_PAT }} --packagePath ../release/fle-lsp-client-${{ matrix.target }}.vsix
+      #   # Note: Publishing to marketplace usually requires a single 'vsex' or a loop over targets. 
+      #   # Typically, you publish platform-specific packages one by one.
