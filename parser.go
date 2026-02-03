@@ -26,6 +26,7 @@ var (
 	extraQSLRegex     = regexp.MustCompile(`\[([^\]]+)\]`)
 )
 
+// ParseFLE parses the content of an FLE document and returns a Logbook, diagnostics, and any error.
 func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 	logbook := &Logbook{
 		QSOs: make([]QSO, 0),

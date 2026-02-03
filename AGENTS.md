@@ -6,10 +6,11 @@ To provide a high-performance Language Server for Fast Log Entry (FLE) files, en
 ## Critical Commands
 - **Build**: `go build -o fle-lsp ./cmd/main.go`
 - **Test**: `go test ./...`
+- **Coverage**: `go test -cover ./...`
 - **Lint**: `go vet ./...`
 
 ## Directory Map
-- `root/`: Core library logic (`server.go`, `handlers.go`).
+- `root/`: Core library logic (`server.go`, `handlers.go`, `parser.go`, `models.go`).
 - `cmd/`: CLI entry point for the server.
 - `vs-code-support/`: Extension metadata for VS Code integration.
 

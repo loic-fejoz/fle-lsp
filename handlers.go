@@ -12,8 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-var logger *zap.Logger
-
+// Handler represents the LSP handler for fle-lsp.
 type Handler struct {
 	UnimplementedServer
 	Client    protocol.Client
@@ -21,11 +20,13 @@ type Handler struct {
 	documents sync.Map // Map[string]*Document
 }
 
+// Document represents a managed FLE document.
 type Document struct {
 	Text    string
 	Logbook *Logbook
 }
 
+// NewHandler creates a new LSP handler.
 func NewHandler(ctx context.Context, client protocol.Client, logger *zap.Logger) (*Handler, context.Context, error) {
 	return &Handler{
 		Client: client,
@@ -33,8 +34,8 @@ func NewHandler(ctx context.Context, client protocol.Client, logger *zap.Logger)
 	}, ctx, nil
 }
 
-func (h *Handler) Initialize(ctx context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
-	logger = h.Logger
+// Initialize handles the initialize request.
+func (h *Handler) Initialize(_ context.Context, _ *protocol.InitializeParams) (*protocol.InitializeResult, error) {
 	h.Logger.Debug("Initializing flelsp server")
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
@@ -79,6 +80,7 @@ func (h *Handler) Initialize(ctx context.Context, params *protocol.InitializePar
 	}, nil
 }
 
+// DidOpen handles the textDocument/didOpen notification.
 func (h *Handler) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocumentParams) error {
 	filename := params.TextDocument.URI.Filename()
 	h.Logger.Info("DidOpen", zap.String("uri", filename))
@@ -96,6 +98,7 @@ func (h *Handler) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocum
 	return h.publishDiagnostics(ctx, params.TextDocument.URI, diags)
 }
 
+// DidChange handles the textDocument/didChange notification.
 func (h *Handler) DidChange(ctx context.Context, params *protocol.DidChangeTextDocumentParams) error {
 	filename := params.TextDocument.URI.Filename()
 	h.Logger.Info("DidChange", zap.String("uri", filename))
@@ -120,28 +123,33 @@ func (h *Handler) DidChange(ctx context.Context, params *protocol.DidChangeTextD
 	return h.publishDiagnostics(ctx, params.TextDocument.URI, diags)
 }
 
-func (h *Handler) DidClose(ctx context.Context, params *protocol.DidCloseTextDocumentParams) error {
+// DidClose handles the textDocument/didClose notification.
+func (h *Handler) DidClose(_ context.Context, params *protocol.DidCloseTextDocumentParams) error {
 	h.Logger.Info("DidClose", zap.String("uri", params.TextDocument.URI.Filename()))
 	h.documents.Delete(params.TextDocument.URI.Filename())
 	return nil
 }
 
-func (h *Handler) Initialized(ctx context.Context, params *protocol.InitializedParams) error {
+// Initialized handles the initialized notification.
+func (h *Handler) Initialized(_ context.Context, _ *protocol.InitializedParams) error {
 	h.Logger.Debug("Client initialized")
 	return nil
 }
 
-func (h *Handler) Shutdown(ctx context.Context) error {
+// Shutdown handles the shutdown request.
+func (h *Handler) Shutdown(_ context.Context) error {
 	h.Logger.Debug("Server shutting down")
 	return nil
 }
 
-func (h *Handler) Exit(ctx context.Context) error {
+// Exit handles the exit notification.
+func (h *Handler) Exit(_ context.Context) error {
 	h.Logger.Debug("Server exiting")
 	return nil
 }
 
-func (h *Handler) SemanticTokensFull(ctx context.Context, params *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
+// SemanticTokensFull handles the textDocument/semanticTokens/full request.
+func (h *Handler) SemanticTokensFull(_ context.Context, params *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
 	filename := params.TextDocument.URI.Filename()
 	v, ok := h.documents.Load(filename)
 	if !ok {
@@ -210,7 +218,8 @@ func (h *Handler) SemanticTokensFull(ctx context.Context, params *protocol.Seman
 	}, nil
 }
 
-func (h *Handler) Hover(ctx context.Context, params *protocol.HoverParams) (*protocol.Hover, error) {
+// Hover handles the textDocument/hover request.
+func (h *Handler) Hover(_ context.Context, params *protocol.HoverParams) (*protocol.Hover, error) {
 	filename := params.TextDocument.URI.Filename()
 	v, ok := h.documents.Load(filename)
 	if !ok {
@@ -255,7 +264,8 @@ func (h *Handler) Hover(ctx context.Context, params *protocol.HoverParams) (*pro
 	}, nil
 }
 
-func (h *Handler) DocumentSymbol(ctx context.Context, params *protocol.DocumentSymbolParams) ([]interface{}, error) {
+// DocumentSymbol handles the textDocument/documentSymbol request.
+func (h *Handler) DocumentSymbol(_ context.Context, params *protocol.DocumentSymbolParams) ([]interface{}, error) {
 	filename := params.TextDocument.URI.Filename()
 	v, ok := h.documents.Load(filename)
 	if !ok {
@@ -371,7 +381,7 @@ func (h *Handler) DocumentSymbol(ctx context.Context, params *protocol.DocumentS
 	return res, nil
 }
 
-func (h *Handler) appendMonthToYear(year *protocol.DocumentSymbol, month *protocol.DocumentSymbol, day *protocol.DocumentSymbol, showMonth bool) {
+func (h *Handler) appendMonthToYear(_ *protocol.DocumentSymbol, month *protocol.DocumentSymbol, day *protocol.DocumentSymbol, _ bool) {
 	if day != nil {
 		month.Children = append(month.Children, *day)
 	}
@@ -398,7 +408,8 @@ func (h *Handler) appendLevel(root *[]protocol.DocumentSymbol, year *protocol.Do
 	}
 }
 
-func (h *Handler) Formatting(ctx context.Context, params *protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
+// Formatting handles the textDocument/formatting request.
+func (h *Handler) Formatting(_ context.Context, params *protocol.DocumentFormattingParams) ([]protocol.TextEdit, error) {
 	filename := params.TextDocument.URI.Filename()
 	v, ok := h.documents.Load(filename)
 	if !ok {
@@ -515,7 +526,8 @@ func (h *Handler) Formatting(ctx context.Context, params *protocol.DocumentForma
 	return edits, nil
 }
 
-func (h *Handler) Completion(ctx context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
+// Completion handles the textDocument/completion request.
+func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
 	filename := params.TextDocument.URI.Filename()
 	v, ok := h.documents.Load(filename)
 	if !ok {

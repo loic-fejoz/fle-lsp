@@ -19,9 +19,10 @@ This project implement the Language Server Protocol (LSP) for Fast Log Entry (FL
 3. **Dispatch**: The `protocol.ServerHandler` routes LSP methods to the `Handler` defined in `handlers.go`.
 
 ## Key Components
-- [server.go](file:///home/loic/projets/fle-lsp/server.go): Handles the connection setup and stream management.
-- [handlers.go](file:///home/loic/projets/fle-lsp/handlers.go): Contains the business logic for LSP methods (e.g., `Initialize`, `DidOpen`, `DidChange`).
-- [parser.go](file:///home/loic/projets/fle-lsp/parser.go) (Upcoming): Will house the stateful FLE parser.
+- [server.go](file:///home/loic/projets/fle-lsp/server.go): Connection setup and stream management.
+- [handlers.go](file:///home/loic/projets/fle-lsp/handlers.go): Business logic for LSP methods (Hover, Completion, Document Symbols, Semantic Tokens).
+- [parser.go](file:///home/loic/projets/fle-lsp/parser.go): Stateful FLE parser implementation.
+- [models.go](file:///home/loic/projets/fle-lsp/models.go): Domain models (QSO, Token, etc.).
 
 ## Parsing Strategy
 FLE is line-oriented and stateful. The parser will process documents line-by-line, maintaining a state object to track the active date, band, and mode. Shorthand times will be expanded based on the previous QSO's time.

@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// BuiltAt holds the timestamp of when the binary was built.
 var BuiltAt string
 
 // StartServer starts the language server.
