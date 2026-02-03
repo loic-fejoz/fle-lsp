@@ -6,8 +6,14 @@ An experimental VS Code extension providing rich language support for **Fast Log
 
 - **Syntax Highlighting**: Semantic tokens for bands, modes, callsigns, etc.
 - **Diagnostics**: Highlights errors in your FLE logs as you type.
-- **Auto-completion**: Suggestions for keywords, bands, modes, and current UTC time/date.
-- **Hover Support**: View detailed QSO information under the cursor.
+- **Auto-completion**:
+    - Suggestions for keywords, bands, modes, and current UTC time/date.
+    - **MyGrid**: Type `mygrid ` to auto-suggest your current Maidenhead locator from **GPSD** (direct TCP), **GPredict**, or **Xastir** configs.
+- **Contextual Hover**: View detailed information including:
+    - Persistent state (Date, Band, Mode).
+    - **Contact Statistics**: See how many times you've worked a callsign.
+    - **DXCC Info**: Instant country/entity lookup (supports all countries, European microstates & French territories).
+- **Code Actions**: Quick Fixes for common issues like correcting date formats (`DD/MM/YYYY` -> `YYYY-MM-DD`).
 - **Document Outline**: Navigate your logbook by Year, Month, and Day.
 - **Folding**: Collapse sections of your log to keep it organized.
 - **Formatting**: Normalize your log entries automatically.

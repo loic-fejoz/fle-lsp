@@ -29,7 +29,15 @@ FLE LSP transforms your text editor into a powerful radio logging workstation:
     -   Bands (160m - 70cm) and Modes (CW, SSB, FT8, etc.).
     -   Dynamic **current UTC time** and **date** suggestions.
     -   Header keywords (`mycall`, `mygrid`, `operator`, etc.).
--   **Contextual Hover**: Hover over any QSO to reveal its persistent state (Date, Band, and Mode).
+    -   **MyGrid**: Type `mygrid ` to auto-suggest your current Maidenhead locator from:
+        -   **GPS**: Direct TCP link to local `gpsd` (supports `cgps`/`gpsmon`).
+        -   **GPredict**: Configured ground stations in `~/.config/Gpredict/`.
+        -   **Xastir**: Station location from `~/.xastir/config/xastir.cnf`.
+-   **Contextual Hover**: Hover over any QSO to reveal:
+    -   Persistent state (Date, Band, Mode).
+    -   **Contact Statistics**: Number of times you've worked this callsign.
+    -   **DXCC Info**: Country and entity details (supports all countries + European microstates & French territories).
+-   **Quick Fixes**: Automatically correct date formats (e.g., `DD/MM/YYYY` → `YYYY-MM-DD`).
 
 ### 🛠️ Professional Layout & Formatting
 -   **Auto-Formatting**: Automatically normalizes Maidenhead grids (e.g., `jn38qr` → `JN38qr`), callsigns, and modes.
@@ -42,7 +50,7 @@ FLE LSP transforms your text editor into a powerful radio logging workstation:
 
 ---
 
-## 🚀 Setup Guides
+## 🚀 Development Setup Guides
 
 ### VS Code
 1.  Navigate to `vs-code-support/` and run `npm install`.

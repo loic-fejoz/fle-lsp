@@ -2,6 +2,8 @@ package flelsp
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -136,6 +138,52 @@ func TestHandler_Completion(t *testing.T) {
 	}
 	if !found {
 		t.Error("Expected 'CW' in completion items")
+	}
+}
+
+func TestHandler_Completion_MyGrid(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "gpredict_test_completion")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	qthFile := filepath.Join(tmpDir, "Home.qth")
+	contentFile := "[QTH]\nLAT=48.8583\nLON=2.2945\n"
+	if err := os.WriteFile(qthFile, []byte(contentFile), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	content := "mygrid "
+	h, _ := setupTestHandler(t, content)
+	h.locationSources = []LocationSource{{
+		Name: "GPredict: Home",
+		Path: qthFile,
+		Type: SourceGPredict,
+	}}
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	params := &protocol.CompletionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+			Position:     protocol.Position{Line: 0, Character: 7},
+		},
+	}
+
+	list, err := h.Completion(context.Background(), params)
+	if err != nil {
+		t.Fatalf("Completion failed: %v", err)
+	}
+
+	found := false
+	for _, item := range list.Items {
+		if strings.Contains(item.Label, "JN18du") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Expected grid 'JN18du' in completion items for mygrid")
 	}
 }
 

@@ -19,6 +19,8 @@ type Handler struct {
 	Client    protocol.Client
 	Logger    *zap.Logger
 	documents sync.Map // Map[string]*Document
+
+	locationSources []LocationSource
 }
 
 // Document represents a managed FLE document.
@@ -38,6 +40,7 @@ func NewHandler(ctx context.Context, client protocol.Client, logger *zap.Logger)
 // Initialize handles the initialize request.
 func (h *Handler) Initialize(_ context.Context, _ *protocol.InitializeParams) (*protocol.InitializeResult, error) {
 	h.Logger.Debug("Initializing flelsp server")
+	h.locationSources = DetectLocationSources()
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			DefinitionProvider:     false,
@@ -747,6 +750,31 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 			Detail:     "Current UTC date",
 			SortText:   "00",
 		})
+	}
+
+	// Context: After 'mygrid' keyword
+	if strings.ToLower(trimmedPrefix) == "mygrid" {
+		for _, source := range h.locationSources {
+			var grid string
+			switch source.Type {
+			case SourceGPSD:
+				grid = GetGPSDGrid()
+			case SourceGPredict:
+				_, grid = GetGPredictGrids(source.Path)
+			case SourceXastir:
+				grid = GetXastirGrid(source.Path)
+			}
+
+			if grid != "" {
+				items = append(items, protocol.CompletionItem{
+					Label:      fmt.Sprintf("[%s] %s", source.Name, grid),
+					InsertText: grid,
+					Kind:       protocol.CompletionItemKindSnippet,
+					Detail:     "Maidenhead grid from " + source.Name,
+					SortText:   "00",
+				})
+			}
+		}
 	}
 
 	// 2. Add Keywords
