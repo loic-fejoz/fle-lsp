@@ -1,19 +1,31 @@
 {
-  "name": "fle_lsp",
-  "displayName": "Fast Log Entry LSP",
-  "description": "Language support for Fast Log Entry",
+  "name": "fle-lsp-client",
+  "displayName": "FLE LSP Client",
+  "description": "FLE Language Support",
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.82.0"
+    "vscode": "^1.75.0"
   },
-  "categories": [
-    "Programming Languages"
+  "activationEvents": [
+    "onLanguage:fastlogentry"
   ],
+  "main": "./client.js",
   "contributes": {
-    "languages": [{
-      "id": "fastlogentry",
-      "aliases": ["FastLogEntry", "FLE"],
-      "extensions": [".fle", ".txt"]
-    }]
+    "languages": [
+      {
+        "id": "fastlogentry",
+        "aliases": [
+          "Fast Log Entry",
+          "FLE"
+        ],
+        "extensions": [
+          ".fle"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
   }
 }

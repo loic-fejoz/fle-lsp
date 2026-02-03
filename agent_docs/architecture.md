@@ -1,0 +1,37 @@
+# Architecture: fle-lsp
+
+## Overview
+This project implement the Language Server Protocol (LSP) for Fast Log Entry (FLE) files using a modular Go approach.
+
+## Tech Stack
+- **Language**: Go
+- **LSP Framework**: [go.lsp.dev](https://github.com/go-lsp/protocol) (specifically `jsonrpc2` and `protocol` packages).
+
+## Project Patterns
+- **Logging**: Use the `zap` logger provided in the `Handler` struct. Avoid naked `fmt.Print` calls.
+- **Error Handling**: Bubble errors up to the handler methods where they can be logged or returned as LSP error codes.
+- **LSP Methods**: Maintain a clean `Handler` struct.
+- **FLE Models**: Use domain-driven naming for FLE concepts (e.g., `QSO`, `Header`, `LogEvent`, `Band`, `Mode`).
+
+## Server Lifecycle
+1. **Entry Point**: `cmd/main.go` initializes a logger and calls `flelsp.StartServer`.
+2. **Transport**: `server.go` wraps `os.Stdin` and `os.Stdout` into a `readWriteCloser` for JSON-RPC communication.
+3. **Dispatch**: The `protocol.ServerHandler` routes LSP methods to the `Handler` defined in `handlers.go`.
+
+## Key Components
+- [server.go](file:///home/loic/projets/fle-lsp/server.go): Handles the connection setup and stream management.
+- [handlers.go](file:///home/loic/projets/fle-lsp/handlers.go): Contains the business logic for LSP methods (e.g., `Initialize`, `DidOpen`, `DidChange`).
+- [parser.go](file:///home/loic/projets/fle-lsp/parser.go) (Upcoming): Will house the stateful FLE parser.
+
+## Parsing Strategy
+FLE is line-oriented and stateful. The parser will process documents line-by-line, maintaining a state object to track the active date, band, and mode. Shorthand times will be expanded based on the previous QSO's time.
+```mermaid
+graph TD
+    A[Editor] -- JSON-RPC --> B[Stdin]
+    B --> C[readWriteCloser]
+    C --> D[jsonrpc2.Conn]
+    D --> E[Handler]
+    E -- Response --> D
+    D --> F[Stdout]
+    F -- JSON-RPC --> A
+```

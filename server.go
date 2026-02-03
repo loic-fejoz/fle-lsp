@@ -21,9 +21,10 @@ func StartServer(logger *zap.Logger) {
 		writer: os.Stdout,
 	}))
 
+	client := protocol.ClientDispatcher(conn, logger)
 	handler, ctx, err := NewHandler(
 		context.Background(),
-		protocol.ServerDispatcher(conn, logger),
+		client,
 		logger,
 	)
 
