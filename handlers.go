@@ -666,26 +666,13 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 			SortText:   "00",
 		})
 
-		// Only suggest 'date YYYY-MM-DD' if no date in doc
-		hasDate := false
-		if doc.Logbook != nil {
-			// Check tokens for any date
-			for _, t := range doc.Logbook.Tokens {
-				if t.Type == TokenDate {
-					hasDate = true
-					break
-				}
-			}
-		}
-		if !hasDate {
-			items = append(items, protocol.CompletionItem{
-				Label:      "date " + dateUTC,
-				InsertText: "date " + dateUTC,
-				Kind:       protocol.CompletionItemKindSnippet,
-				Detail:     "Suggest current UTC date",
-				SortText:   "01",
-			})
-		}
+		items = append(items, protocol.CompletionItem{
+			Label:      "date " + dateUTC,
+			InsertText: "date " + dateUTC,
+			Kind:       protocol.CompletionItemKindSnippet,
+			Detail:     "Suggest current UTC date",
+			SortText:   "01",
+		})
 	}
 
 	// Context: After 'date' keyword

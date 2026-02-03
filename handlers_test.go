@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"go.lsp.dev/protocol"
 	"go.uber.org/zap"
@@ -240,5 +241,39 @@ date 2026-02-02
 	}
 	if !found {
 		t.Errorf("Expected range for first day (covering 1-3), got %v", ranges)
+	}
+}
+
+func TestHandler_Completion_DateToday(t *testing.T) {
+	// Content already has a date
+	content := "mycall F4JXQ\ndate 2026-02-01\n"
+	h, _ := setupTestHandler(t, content)
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	// Trigger completion at start of 3rd line
+	params := &protocol.CompletionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+			Position:     protocol.Position{Line: 2, Character: 0},
+		},
+	}
+
+	list, err := h.Completion(context.Background(), params)
+	if err != nil {
+		t.Fatalf("Completion failed: %v", err)
+	}
+
+	dateToday := time.Now().UTC().Format("2006-01-02")
+	wantLabel := "date " + dateToday
+	found := false
+	for _, item := range list.Items {
+		if item.Label == wantLabel {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Errorf("Expected completion item %q not found in %v", wantLabel, list.Items)
 	}
 }
