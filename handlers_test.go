@@ -277,3 +277,56 @@ func TestHandler_Completion_DateToday(t *testing.T) {
 		t.Errorf("Expected completion item %q not found in %v", wantLabel, list.Items)
 	}
 }
+
+func TestHandler_RangeFormatting(t *testing.T) {
+	content := `mycall f4jxq
+date 2026-02-01
+40m cw
+1200 ea1abc #jn38qr`
+	h, _ := setupTestHandler(t, content)
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	// Format only the first line (mycall) and last line (QSO)
+	// We'll do two separate range requests or one that covers a middle part but we want to see it NOT format the middle if excluded.
+	// Actually, let's just test a single range.
+	params := &protocol.DocumentRangeFormattingParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+		Range: protocol.Range{
+			Start: protocol.Position{Line: 0, Character: 0},
+			End:   protocol.Position{Line: 0, Character: 12},
+		},
+	}
+
+	edits, err := h.RangeFormatting(context.Background(), params)
+	if err != nil {
+		t.Fatalf("RangeFormatting failed: %v", err)
+	}
+
+	if len(edits) != 1 {
+		t.Fatalf("Expected 1 edit for the first line, got %d", len(edits))
+	}
+
+	if edits[0].NewText != "mycall F4JXQ" {
+		t.Errorf("Expected formatted mycall 'mycall F4JXQ', got %q", edits[0].NewText)
+	}
+
+	// Test formatting the last line
+	params.Range = protocol.Range{
+		Start: protocol.Position{Line: 3, Character: 0},
+		End:   protocol.Position{Line: 3, Character: 20},
+	}
+
+	edits, err = h.RangeFormatting(context.Background(), params)
+	if err != nil {
+		t.Fatalf("RangeFormatting failed: %v", err)
+	}
+
+	if len(edits) != 1 {
+		t.Fatalf("Expected 1 edit for the last line, got %d", len(edits))
+	}
+
+	// ea1abc -> EA1ABC, jn38qr -> JN38qr
+	if edits[0].NewText != "1200 EA1ABC #JN38qr" {
+		t.Errorf("Expected formatted QSO '1200 EA1ABC #JN38qr', got %q", edits[0].NewText)
+	}
+}

@@ -44,11 +44,11 @@ func (h *Handler) Initialize(_ context.Context, _ *protocol.InitializeParams) (*
 			DocumentSymbolProvider: true,
 			CompletionProvider: &protocol.CompletionOptions{
 				TriggerCharacters: []string{" "},
-				ResolveProvider:   false,
 			},
-			DocumentFormattingProvider: true,
-			FoldingRangeProvider:       true,
-			ColorProvider:              false,
+			DocumentFormattingProvider:      true,
+			DocumentRangeFormattingProvider: true,
+			FoldingRangeProvider:            true,
+			ColorProvider:                   false,
 			SemanticTokensProvider: map[string]interface{}{
 				"legend": protocol.SemanticTokensLegend{
 					TokenTypes: []protocol.SemanticTokenTypes{
@@ -526,95 +526,7 @@ func (h *Handler) Formatting(_ context.Context, params *protocol.DocumentFormatt
 
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
-
-		formatted := ""
-
-		// 1. Header keywords
-		if loc := headerRegex.FindStringSubmatchIndex(trimmed); loc != nil {
-			key := strings.ToLower(trimmed[loc[2]:loc[3]])
-			val := trimmed[loc[4]:loc[5]]
-			if key == "mygrid" {
-				val = formatGrid(val)
-			}
-			formatted = fmt.Sprintf("%s %s", key, val)
-		} else if loc := dateRegex.FindStringSubmatchIndex(trimmed); loc != nil {
-			// 2. Dates "date YYYY-MM-DD"
-			dateStr := trimmed[loc[2]:loc[3]]
-			formatted = fmt.Sprintf("date %s", dateStr)
-		} else if loc := simpleDate.FindStringSubmatchIndex(trimmed); loc != nil {
-			// 3. Simple Dates "YYYY-MM-DD"
-			formatted = trimmed[loc[2]:loc[3]]
-		} else if dayPlus.MatchString(trimmed) {
-			// 4. "day +"
-			formatted = strings.ToLower(trimmed)
-		} else {
-			// 5. Band/Mode or QSO
-			fields := strings.Fields(trimmed)
-			isControl := true
-			for _, f := range fields {
-				if !bandRegex.MatchString(f) && !modeRegex.MatchString(strings.ToUpper(f)) {
-					isControl = false
-					break
-				}
-			}
-
-			if isControl {
-				// Normalize Band/Mode line
-				var parts []string
-				for _, f := range fields {
-					if bandRegex.MatchString(f) {
-						parts = append(parts, strings.ToLower(f))
-					} else {
-						parts = append(parts, strings.ToUpper(f))
-					}
-				}
-				formatted = strings.Join(parts, " ")
-			} else if loc := qsoLineRegex.FindStringSubmatchIndex(trimmed); loc != nil {
-				// 6. QSO Line Normalization (without fixed-width alignment)
-				rawTime := ""
-				if loc[2] != -1 {
-					rawTime = trimmed[loc[2]:loc[3]]
-				}
-				callsign := strings.ToUpper(trimmed[loc[4]:loc[5]])
-				rstS := ""
-				if loc[6] != -1 {
-					rstS = trimmed[loc[6]:loc[7]]
-				}
-				rstR := ""
-				if loc[8] != -1 {
-					rstR = trimmed[loc[8]:loc[9]]
-				}
-				extras := ""
-				if loc[10] != -1 {
-					extras = trimmed[loc[10]:loc[11]]
-					// Normalize grid in extras (e.g., #JN38QR -> #JN38qr)
-					extras = extraGridRegex.ReplaceAllStringFunc(extras, func(m string) string {
-						return "#" + formatGrid(m[1:])
-					})
-				}
-
-				// Join with single spaces
-				parts := []string{}
-				if rawTime != "" {
-					parts = append(parts, rawTime)
-				}
-				parts = append(parts, callsign)
-				if rstS != "" {
-					parts = append(parts, rstS)
-				}
-				if rstR != "" {
-					parts = append(parts, rstR)
-				}
-				if extras != "" {
-					parts = append(parts, extras)
-				}
-
-				formatted = strings.Join(parts, " ")
-			}
-		}
+		formatted := h.normalizeLine(trimmed)
 
 		if formatted != "" && formatted != trimmed {
 			edits = append(edits, protocol.TextEdit{
@@ -628,6 +540,143 @@ func (h *Handler) Formatting(_ context.Context, params *protocol.DocumentFormatt
 	}
 
 	return edits, nil
+}
+
+// RangeFormatting handles the textDocument/rangeFormatting request.
+func (h *Handler) RangeFormatting(_ context.Context, params *protocol.DocumentRangeFormattingParams) ([]protocol.TextEdit, error) {
+	filename := params.TextDocument.URI.Filename()
+	v, ok := h.documents.Load(filename)
+	if !ok {
+		return nil, nil
+	}
+	doc := v.(*Document)
+
+	lines := strings.Split(doc.Text, "\n")
+	var edits []protocol.TextEdit
+
+	startLine := params.Range.Start.Line
+	endLine := params.Range.End.Line
+
+	for i := int(startLine); i <= int(endLine) && i < len(lines); i++ {
+		line := lines[i]
+		trimmed := strings.TrimSpace(line)
+		formatted := h.normalizeLine(trimmed)
+
+		if formatted != "" && formatted != trimmed {
+			edits = append(edits, protocol.TextEdit{
+				Range: protocol.Range{
+					Start: protocol.Position{Line: uint32(i), Character: 0},
+					End:   protocol.Position{Line: uint32(i), Character: uint32(len(line))},
+				},
+				NewText: formatted,
+			})
+		}
+	}
+
+	return edits, nil
+}
+
+func (h *Handler) normalizeLine(trimmed string) string {
+	if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+		return ""
+	}
+
+	// 1. Header keywords
+	if loc := headerRegex.FindStringSubmatchIndex(trimmed); loc != nil {
+		key := strings.ToLower(trimmed[loc[2]:loc[3]])
+		val := trimmed[loc[4]:loc[5]]
+		switch key {
+		case "mygrid":
+			val = formatGrid(val)
+		case "mycall", "operator":
+			val = strings.ToUpper(val)
+		}
+		return fmt.Sprintf("%s %s", key, val)
+	}
+
+	// 2. Dates "date YYYY-MM-DD"
+	if loc := dateRegex.FindStringSubmatchIndex(trimmed); loc != nil {
+		dateStr := trimmed[loc[2]:loc[3]]
+		return fmt.Sprintf("date %s", dateStr)
+	}
+
+	// 3. Simple Dates "YYYY-MM-DD"
+	if loc := simpleDate.FindStringSubmatchIndex(trimmed); loc != nil {
+		return trimmed[loc[2]:loc[3]]
+	}
+
+	// 4. "day +"
+	if dayPlus.MatchString(trimmed) {
+		return strings.ToLower(trimmed)
+	}
+
+	// 5. Band/Mode or QSO
+	fields := strings.Fields(trimmed)
+	isControl := true
+	for _, f := range fields {
+		if !bandRegex.MatchString(f) && !modeRegex.MatchString(strings.ToUpper(f)) {
+			isControl = false
+			break
+		}
+	}
+
+	if isControl {
+		// Normalize Band/Mode line
+		var parts []string
+		for _, f := range fields {
+			if bandRegex.MatchString(f) {
+				parts = append(parts, strings.ToLower(f))
+			} else {
+				parts = append(parts, strings.ToUpper(f))
+			}
+		}
+		return strings.Join(parts, " ")
+	}
+
+	// 6. QSO Line Normalization
+	if loc := qsoLineRegex.FindStringSubmatchIndex(trimmed); loc != nil {
+		rawTime := ""
+		if loc[2] != -1 {
+			rawTime = trimmed[loc[2]:loc[3]]
+		}
+		callsign := strings.ToUpper(trimmed[loc[4]:loc[5]])
+		rstS := ""
+		if loc[6] != -1 {
+			rstS = trimmed[loc[6]:loc[7]]
+		}
+		rstR := ""
+		if loc[8] != -1 {
+			rstR = trimmed[loc[8]:loc[9]]
+		}
+		extras := ""
+		if loc[10] != -1 {
+			extras = trimmed[loc[10]:loc[11]]
+			// Normalize grid in extras (e.g., #JN38QR -> #JN38qr)
+			extras = extraGridRegex.ReplaceAllStringFunc(extras, func(m string) string {
+				return "#" + formatGrid(m[1:])
+			})
+		}
+
+		// Join with single spaces
+		parts := []string{}
+		if rawTime != "" {
+			parts = append(parts, rawTime)
+		}
+		parts = append(parts, callsign)
+		if rstS != "" {
+			parts = append(parts, rstS)
+		}
+		if rstR != "" {
+			parts = append(parts, rstR)
+		}
+		if extras != "" {
+			parts = append(parts, extras)
+		}
+
+		return strings.Join(parts, " ")
+	}
+
+	return ""
 }
 
 // Completion handles the textDocument/completion request.

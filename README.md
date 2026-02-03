@@ -1,66 +1,68 @@
-# LSP for FLE
+# FLE LSP 📡
 
-A [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) implementation for hamradio logbook in [Fast Log Entry](https://df3cb.com/fle/documentation/) format.
+[![Go Report Card](https://goreportcard.com/badge/github.com/loic-fejoz/fle-lsp)](https://goreportcard.com/report/github.com/loic-fejoz/fle-lsp)
+[![CI](https://github.com/loic-fejoz/fle-lsp/actions/workflows/go.yml/badge.svg)](https://github.com/loic-fejoz/fle-lsp/actions/workflows/go.yml)
+[![codecov](https://codecov.io/gh/loic-fejoz/fle-lsp/branch/master/graph/badge.svg)](https://codecov.io/gh/loic-fejoz/fle-lsp)
 
-## Features
+A high-performance [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) implementation for [Fast Log Entry (FLE)](https://df3cb.com/fle/documentation/) ham radio logbooks.
 
-- **Real-time Diagnostics**: Immediate feedback on syntax errors, invalid dates, and time monotonicity.
-- **Semantic Highlighting**: Rich coloring for callsigns, bands, modes, times, and operator comments (requires **FLE Original** theme).
-- **Smart Autocompletion**:
-  - Context-aware suggestions for **Bands** and **Modes**.
-  - **Current UTC time** suggestions at the start of a line for real-time logging.
-  - **Current UTC date** suggestions (e.g., `date 2026-02-03`) if no date is present.
-  - Header keywords suggestions.
-- **Document Formatting**:
-  - Automatic normalization of **Maidenhead grids** (e.g., `jn38qr` -> `JN38qr`).
-  - Normalization of casing for callsigns and modes.
-  - Clean whitespace management for QSO lines.
-- **Outline & Navigation**: Full support for the VSCode Outline view, allowing navigation by year, month, and day.
-- **Enhanced Hover Info**: Hover over any QSO to see its persistent context (Date, Band, Mode).
+---
 
-## Development
+### ⚡ TL;DR: Quick Start
 
-### Building
-```bash
-go build -o fle-lsp ./cmd/main.go
-```
+**What is it?** A developer tool that adds IDE-like features (errors, completions, formatting) to your FLE logging workflow.  
+**Why use it?** Catch logging errors instantly, automate formatting, and navigate thousands of QSOs with ease.  
+**How to start?**
 
-### Testing with VSCode
+1.  **Build**: `go build -o fle-lsp ./cmd/main.go`
+2.  **Configure**: Add the binary to your PATH and point your favorite LSP client (VS Code, Neovim, etc.) to it.
 
-1. Build the server binary in the root directory:
-   ```bash
-   go build -o fle-lsp ./cmd/main.go
-   ```
-2. Navigate to `vs-code-support/`:
-   ```bash
-   cd vs-code-support
-   npm install
-   ```
-3. Open the `vs-code-support` folder in a new VSCode window.
-4. Press `F5` to start a new "Extension Development Host" window.
-5. In the new window, open any `.fle` file (or create one).
-6. You should see the LSP status and real-time diagnostics!
-7. **Syntax Highlighting**: To get the original FLE look, press `Ctrl+K Ctrl+T` and select the **FLE Original** theme.
+---
 
-### Testing with Vim (Neovim)
+## ✨ Features
 
-For Neovim users using the built-in LSP client, you can test the server by adding this to your `init.lua` (usually located at `~/.config/nvim/init.lua` on Linux/macOS):
+FLE LSP transforms your text editor into a powerful radio logging workstation:
+
+### 🔍 Real-time Intelligence
+-   **Instant Diagnostics**: Catches syntax errors, invalid dates, and out-of-order timestamps as you type.
+-   **Smart Autocomplete**:
+    -   Bands (160m - 70cm) and Modes (CW, SSB, FT8, etc.).
+    -   Dynamic **current UTC time** and **date** suggestions.
+    -   Header keywords (`mycall`, `mygrid`, `operator`, etc.).
+-   **Contextual Hover**: Hover over any QSO to reveal its persistent state (Date, Band, and Mode).
+
+### 🛠️ Professional Layout & Formatting
+-   **Auto-Formatting**: Automatically normalizes Maidenhead grids (e.g., `jn38qr` → `JN38qr`), callsigns, and modes.
+-   **Document Hierarchy**: Navigate complex logs via a structured outline (Year > Month > Day > QSO).
+-   **Smart Folding**: Collapse entire years or months to focus on your current session.
+-   **Semantic Highlighting**: Rich, context-aware coloring for all FLE elements.
+
+> [!TIP]
+> Use the included **FLE Original** theme in VS Code for the best semantic highlighting experience.
+
+---
+
+## 🚀 Setup Guides
+
+### VS Code
+1.  Navigate to `vs-code-support/` and run `npm install`.
+2.  Open the folder in VS Code and press `F5` to launch.
+3.  Set your color theme to **FLE Original** (`Ctrl+K Ctrl+T`).
+
+### Neovim (Built-in LSP)
+Add this snippet to your `init.lua`:
 
 ```lua
--- 1. Ensure .fle files are recognized
-vim.filetype.add({
-  extension = {
-    fle = "fle",
-  },
-})
+-- 1. Register .fle filetype
+vim.filetype.add({ extension = { fle = "fle" } })
 
--- 2. Start the LSP server for 'fle' files
+-- 2. Attach LSP
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "fle",
   callback = function()
     vim.lsp.start({
       name = "fle-lsp",
-      cmd = { "/home/loic/projets/fle-lsp/fle-lsp" }, -- Absolute path to binary
+      cmd = { "fle-lsp" }, -- Ensure fle-lsp is in your PATH
       root_dir = vim.fn.getcwd(),
     })
   end,
@@ -77,28 +79,30 @@ vim.api.nvim_set_hl(0, "@lsp.type.date.fle", { link = "Function" })
 vim.api.nvim_set_hl(0, "@lsp.type.name.fle", { foreground = "#8b4513" })
 vim.api.nvim_set_hl(0, "@lsp.type.extra.fle", { foreground = "#8b4513" })
 ```
-#### Verifying Neovim Setup
 
-1.  **Check LSP Status**: Open a `.fle` file in Neovim and run `:LspInfo`. You should see `fle-lsp` listed as an active client.
-2.  **Inspect Logs**: If it's not working, run `:LspLog` to see the communication between Neovim and the server.
-3.  **Validate Path**: Ensure the `cmd` path in your `init.lua` is the **absolute path** to the compiled `fle-lsp` binary.
-4.  **Test Diagnostics**: Type an invalid date (e.g., `date 2026-13-45`) and save. You should see a diagnostic message.
+> [!IMPORTANT]
+> Ensure the `fle-lsp` binary is in your system PATH or provide the absolute path in the `cmd` table.
 
-If you use `coc.nvim`, add this to your `coc-settings.json`:
+---
 
-```json
-{
-  "languageserver": {
-    "fle": {
-      "command": "/absolute/path/to/fle-lsp",
-      "filetypes": ["fle", "fastlogentry"],
-      "rootPatterns": [".git/"]
-    }
-  }
-}
+## 🛠️ Development
+
+### Local Build
+```bash
+go build -o fle-lsp ./cmd/main.go
 ```
 
-## Resources
+### Quality Control
+```bash
+make lint    # Run golangci-lint
+go test ./... # Run full test suite
+```
 
-* [Fast Log Entry Documentation](https://df3cb.com/fle/documentation/)
-* [Making an LSP server in Go](https://en.ewen.works/blog/making-an-lsp-server-in-go)
+---
+
+## 📚 Resources
+*   [Official FLE Documentation](https://df3cb.com/fle/documentation/)
+*   [LSP Specification](https://microsoft.github.io/language-server-protocol/)
+
+---
+*Maintained by [loic-fejoz](https://github.com/loic-fejoz)*
