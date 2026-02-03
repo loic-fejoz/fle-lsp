@@ -1,4 +1,4 @@
-version: "1.2"
+version: "2"
 run:
   tests: true
   timeout: 5m
