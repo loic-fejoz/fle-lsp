@@ -2,6 +2,7 @@ package flelsp
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 
@@ -33,9 +34,37 @@ func StartServer(logger *zap.Logger) {
 		logger.Sugar().Fatalf("while initializing handler: %v", err)
 	}
 
-	conn.Go(ctx, protocol.ServerHandler(
-		handler, jsonrpc2.MethodNotFoundHandler,
-	))
+	serverHandler := protocol.ServerHandler(handler, jsonrpc2.MethodNotFoundHandler)
+	conn.Go(ctx, func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
+		switch req.Method() {
+		case "initialize":
+			var params protocol.InitializeParams
+			if err := json.Unmarshal(req.Params(), &params); err != nil {
+				return reply(ctx, nil, jsonrpc2.NewError(jsonrpc2.InvalidParams, err.Error()))
+			}
+			resp, err := handler.Initialize(ctx, &params)
+			if err != nil {
+				return reply(ctx, nil, err)
+			}
+			// Add inlayHintProvider support to the response
+			m, _ := json.Marshal(resp)
+			var customResp map[string]interface{}
+			_ = json.Unmarshal(m, &customResp)
+			if caps, ok := customResp["capabilities"].(map[string]interface{}); ok {
+				caps["inlayHintProvider"] = true
+			}
+			return reply(ctx, customResp, nil)
+
+		case "textDocument/inlayHint":
+			var params InlayHintParams
+			if err := json.Unmarshal(req.Params(), &params); err != nil {
+				return reply(ctx, nil, jsonrpc2.NewError(jsonrpc2.InvalidParams, err.Error()))
+			}
+			resp, err := handler.InlayHint(ctx, &params)
+			return reply(ctx, resp, err)
+		}
+		return serverHandler(ctx, reply, req)
+	})
 	<-conn.Done()
 }
 

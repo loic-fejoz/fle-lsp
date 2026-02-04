@@ -200,3 +200,51 @@ day ++
 		t.Errorf("Expected date %s, got %s", expectedDate, logbook.QSOs[2].Timestamp.Format("2006-01-02"))
 	}
 }
+
+func TestBaseCallsign(t *testing.T) {
+	tests := []struct {
+		call string
+		want string
+	}{
+		{"F4JXQ", "F4JXQ"},
+		{"DL/F4JXQ", "F4JXQ"},
+		{"F4JXQ/P", "F4JXQ"},
+		{"DL/F4JXQ/M", "F4JXQ"},
+		{"3W/F4JXQ", "F4JXQ"},
+		{"F4JXQ/1", "F4JXQ"},
+		{"G/F4JXQ/P", "F4JXQ"},
+	}
+
+	for _, tt := range tests {
+		got := BaseCallsign(tt.call)
+		if got != tt.want {
+			t.Errorf("BaseCallsign(%q) = %q, want %q", tt.call, got, tt.want)
+		}
+	}
+}
+
+func TestActivatedGrids(t *testing.T) {
+	content := `
+mycall F4JXQ
+mygrid JN38qr
+date 2023-10-26
+40m CW
+1200 F1ABC
+
+mygrid JN39aa
+1205 F2ABC
+
+mygrid JN38qr
+1210 F3ABC
+`
+	logbook, _, _ := ParseFLE(content)
+	expected := []string{"JN38qr", "JN39aa"}
+	if len(logbook.ActivatedGrids) != len(expected) {
+		t.Fatalf("Expected %d activated grids, got %d", len(expected), len(logbook.ActivatedGrids))
+	}
+	for i, g := range logbook.ActivatedGrids {
+		if g != expected[i] {
+			t.Errorf("At index %d: expected %s, got %s", i, expected[i], g)
+		}
+	}
+}

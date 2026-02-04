@@ -1,12 +1,17 @@
 package flelsp
 
-import "time"
+import (
+	"time"
+
+	"go.lsp.dev/protocol"
+)
 
 // Logbook represents the entire parsed FLE document.
 type Logbook struct {
-	Header Header
-	QSOs   []QSO
-	Tokens []Token // Global tokens like header keywords, dates, etc.
+	Header         Header
+	QSOs           []QSO
+	Tokens         []Token  // Global tokens like header keywords, dates, etc.
+	ActivatedGrids []string // All unique mygrid values encountered
 }
 
 // Header contains station and operator information.
@@ -118,4 +123,19 @@ type Range struct {
 type Pos struct {
 	Line      int
 	Character int
+}
+
+// InlayHintParams represents textDocument/inlayHint parameters.
+type InlayHintParams struct {
+	TextDocument protocol.TextDocumentIdentifier `json:"textDocument"`
+	Range        protocol.Range                  `json:"range"`
+}
+
+// InlayHint represents a single inlay hint.
+type InlayHint struct {
+	Position     protocol.Position `json:"position"`
+	Label        string            `json:"label"`
+	Kind         uint32            `json:"kind,omitempty"`
+	PaddingLeft  bool              `json:"paddingLeft,omitempty"`
+	PaddingRight bool              `json:"paddingRight,omitempty"`
 }

@@ -534,3 +534,45 @@ func TestHandler_CodeAction(t *testing.T) {
 		t.Error("Quick fix for European date format not found")
 	}
 }
+
+func TestHandler_InlayHint(t *testing.T) {
+	content := `mycall F4JXQ
+mygrid JN38qr
+date 2026-02-01
+40m cw
+1200 EA1ABC
+1205 DL/F4JXQ/P
+mygrid JN39aa
+1210 G4XYZ #JN18du`
+	h, _ := setupTestHandler(t, content)
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	params := &InlayHintParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+		Range:        protocol.Range{}, // Range is often ignored for this specific hint
+	}
+
+	hints, err := h.InlayHint(context.Background(), params)
+	if err != nil {
+		t.Fatalf("InlayHint failed: %v", err)
+	}
+
+	if len(hints) != 1 {
+		t.Fatalf("Expected 1 inlay hint, got %d", len(hints))
+	}
+
+	hint := hints[0]
+	// Stats:
+	// Total QSOs: 3 (EA1ABC, DL/F4JXQ/P, G4XYZ)
+	// Unique Calls: 3 (EA1ABC, F4JXQ, G4XYZ)
+	// Activated Grids: 2 (JN38qr, JN39aa)
+	// Collected Grids: 1 (JN18du)
+	want := "Total QSOs: 3 | Callsigns: 3 | Activated Grids: 2 | Collected Grids: 1"
+	if hint.Label != want {
+		t.Errorf("Expected label %q, got %q", want, hint.Label)
+	}
+
+	if hint.Position.Line != 0 || hint.Position.Character != 0 {
+		t.Errorf("Expected position at (0,0), got (%d, %d)", hint.Position.Line, hint.Position.Character)
+	}
+}

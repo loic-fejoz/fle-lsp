@@ -56,6 +56,20 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			val := line[loc[4]:loc[5]]
 			updateHeader(&logbook.Header, key, val)
 
+			if key == "mygrid" {
+				val = formatGrid(val)
+				found := false
+				for _, g := range logbook.ActivatedGrids {
+					if g == val {
+						found = true
+						break
+					}
+				}
+				if !found {
+					logbook.ActivatedGrids = append(logbook.ActivatedGrids, val)
+				}
+			}
+
 			// Extract starting position in rawLine for accuracy
 			startOfLine := strings.Index(rawLine, line)
 			logbook.Tokens = append(logbook.Tokens, Token{
@@ -435,4 +449,75 @@ func isDigital(mode string) bool {
 		return true
 	}
 	return false
+}
+
+// BaseCallsign extracts the core callsign, removing prefixes and suffixes.
+// E.g., DL/F4JXQ/M -> F4JXQ
+func BaseCallsign(call string) string {
+	parts := strings.Split(strings.ToUpper(call), "/")
+	if len(parts) == 1 {
+		return parts[0]
+	}
+
+	bestPart := ""
+	for _, part := range parts {
+		// Ignore standard suffixes/prefixes
+		if isSuffixOrPrefixToIgnore(part) {
+			continue
+		}
+		// Pick the "most complex" part: usually the longest or one with a digit
+		if bestPart == "" || compareCallsignComplexity(part, bestPart) > 0 {
+			bestPart = part
+		}
+	}
+
+	if bestPart == "" {
+		// Fallback to the longest part if everything was filtered
+		for _, part := range parts {
+			if len(part) > len(bestPart) {
+				bestPart = part
+			}
+		}
+	}
+
+	if bestPart == "" {
+		return parts[0]
+	}
+
+	return bestPart
+}
+
+func isSuffixOrPrefixToIgnore(part string) bool {
+	toIgnore := map[string]bool{
+		"P": true, "M": true, "MM": true, "AM": true, "QRP": true, "LH": true,
+		"R": true, "B": true, "J": true,
+	}
+	if toIgnore[part] {
+		return true
+	}
+	// Ignore single digits (e.g., F4JXQ/1)
+	if len(part) == 1 && part >= "0" && part <= "9" {
+		return true
+	}
+	return false
+}
+
+func compareCallsignComplexity(a, b string) int {
+	// A part with a digit is usually more "callsign-like" than one without
+	aHasDigit := strings.ContainsAny(a, "0123456789")
+	bHasDigit := strings.ContainsAny(b, "0123456789")
+
+	if aHasDigit && !bHasDigit {
+		return 1
+	}
+	if !aHasDigit && bHasDigit {
+		return -1
+	}
+
+	// Longer is often better for the base call
+	if len(a) != len(b) {
+		return len(a) - len(b)
+	}
+
+	return 0
 }

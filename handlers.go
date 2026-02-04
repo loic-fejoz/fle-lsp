@@ -505,6 +505,54 @@ func (h *Handler) FoldingRanges(_ context.Context, params *protocol.FoldingRange
 	return ranges, nil
 }
 
+// InlayHint handles the textDocument/inlayHint request.
+func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]InlayHint, error) {
+	filename := params.TextDocument.URI.Filename()
+	v, ok := h.documents.Load(filename)
+	if !ok {
+		return nil, nil
+	}
+	doc := v.(*Document)
+	if doc.Logbook == nil {
+		return nil, nil
+	}
+
+	qsoCount, uniqueCalls, activatedGrids, collectedGrids := h.CalculateStatistics(doc.Logbook)
+
+	label := fmt.Sprintf("Total QSOs: %d | Callsigns: %d | Activated Grids: %d | Collected Grids: %d",
+		qsoCount, uniqueCalls, activatedGrids, collectedGrids)
+
+	return []InlayHint{
+		{
+			Position:     protocol.Position{Line: 0, Character: 0},
+			Label:        label,
+			PaddingRight: true,
+		},
+	}, nil
+}
+
+// CalculateStatistics computes various metrics for the given logbook.
+func (h *Handler) CalculateStatistics(logbook *Logbook) (qsoCount, uniqueCalls, activatedGrids, collectedGrids int) {
+	qsoCount = len(logbook.QSOs)
+
+	calls := make(map[string]bool)
+	colGrids := make(map[string]bool)
+
+	for _, qso := range logbook.QSOs {
+		baseCall := BaseCallsign(qso.Callsign)
+		calls[baseCall] = true
+		if qso.Grid != "" {
+			colGrids[formatGrid(qso.Grid)] = true
+		}
+	}
+
+	uniqueCalls = len(calls)
+	activatedGrids = len(logbook.ActivatedGrids)
+	collectedGrids = len(colGrids)
+
+	return
+}
+
 func (h *Handler) appendMonthToYear(_ *protocol.DocumentSymbol, month *protocol.DocumentSymbol, day *protocol.DocumentSymbol, _ bool) {
 	if day != nil {
 		month.Children = append(month.Children, *day)
