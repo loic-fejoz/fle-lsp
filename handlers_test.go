@@ -57,7 +57,7 @@ func (m *mockClient) WorkspaceFolders(_ context.Context) ([]protocol.WorkspaceFo
 func setupTestHandler(t *testing.T, content string) (*Handler, *mockClient) {
 	logger := zap.NewNop()
 	client := &mockClient{}
-	h, _, _ := NewHandler(context.Background(), client, logger)
+	h, _, _ := NewHandler(context.Background(), client, nil, logger)
 
 	if content != "" {
 		uri := protocol.DocumentURI("file:///test.fle")
@@ -557,22 +557,28 @@ mygrid JN39aa
 		t.Fatalf("InlayHint failed: %v", err)
 	}
 
-	if len(hints) != 1 {
-		t.Fatalf("Expected 1 inlay hint, got %d", len(hints))
+	if len(hints) != 2 {
+		t.Fatalf("Expected 2 inlay hints, got %d", len(hints))
 	}
 
-	hint := hints[0]
+	summaryHint := hints[0]
 	// Stats:
 	// Total QSOs: 3 (EA1ABC, DL/F4JXQ/P, G4XYZ)
 	// Unique Calls: 3 (EA1ABC, F4JXQ, G4XYZ)
 	// Activated Grids: 2 (JN38qr, JN39aa)
 	// Collected Grids: 1 (JN18du)
-	want := "Total QSOs: 3 | Callsigns: 3 | Activated Grids: 2 | Collected Grids: 1"
-	if hint.Label != want {
-		t.Errorf("Expected label %q, got %q", want, hint.Label)
+	wantSummary := "Total QSOs: 3 | Callsigns: 3 | Activated Grids: 2 | Collected Grids: 1"
+	if summaryHint.Label != wantSummary {
+		t.Errorf("Expected summary label %q, got %q", wantSummary, summaryHint.Label)
 	}
 
-	if hint.Position.Line != 0 || hint.Position.Character != 0 {
-		t.Errorf("Expected position at (0,0), got (%d, %d)", hint.Position.Line, hint.Position.Character)
+	if summaryHint.Position.Line != 0 || summaryHint.Position.Character != 0 {
+		t.Errorf("Expected position at (0,0), got (%d, %d)", summaryHint.Position.Line, summaryHint.Position.Character)
+	}
+
+	gridHint := hints[1]
+	// JN39aa to JN18du is approx 374km 258°
+	if !strings.Contains(gridHint.Label, "km") || !strings.Contains(gridHint.Label, "°") {
+		t.Errorf("Expected grid hint to contain distance and bearing, got %q", gridHint.Label)
 	}
 }

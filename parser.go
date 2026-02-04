@@ -58,6 +58,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 
 			if key == "mygrid" {
 				val = formatGrid(val)
+				state.MyGrid = val
 				found := false
 				for _, g := range logbook.ActivatedGrids {
 					if g == val {
@@ -366,6 +367,7 @@ func parseQSOLine(line string, state *InternalState, lineNum int) (QSO, []Diagno
 		ReportSent:     rstS,
 		ReportReceived: rstR,
 		LineNumber:     lineNum,
+		MyGrid:         state.MyGrid,
 	}
 
 	// Default reports if missing

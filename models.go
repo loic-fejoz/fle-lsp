@@ -74,6 +74,7 @@ type QSO struct {
 	QSLMsg         string
 	LineNumber     int     // For diagnostics mapping
 	Tokens         []Token // For semantic highlighting
+	MyGrid         string  // The active mygrid for this QSO
 }
 
 // InternalState tracks the persistent state during parsing.
@@ -82,6 +83,7 @@ type InternalState struct {
 	Band     string
 	Mode     string
 	LastTime string
+	MyGrid   string
 }
 
 // Severity represents the diagnostic severity level.

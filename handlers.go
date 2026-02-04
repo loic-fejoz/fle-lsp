@@ -3,11 +3,13 @@ package flelsp
 import (
 	"context"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"go.lsp.dev/jsonrpc2"
 	"go.lsp.dev/protocol"
 	"go.uber.org/zap"
 )
@@ -16,6 +18,7 @@ import (
 type Handler struct {
 	UnimplementedServer
 	Client    protocol.Client
+	Conn      jsonrpc2.Conn
 	Logger    *zap.Logger
 	documents sync.Map // Map[string]*Document
 
@@ -29,9 +32,10 @@ type Document struct {
 }
 
 // NewHandler creates a new LSP handler.
-func NewHandler(ctx context.Context, client protocol.Client, logger *zap.Logger) (*Handler, context.Context, error) {
+func NewHandler(ctx context.Context, client protocol.Client, conn jsonrpc2.Conn, logger *zap.Logger) (*Handler, context.Context, error) {
 	return &Handler{
 		Client: client,
+		Conn:   conn,
 		Logger: logger,
 	}, ctx, nil
 }
@@ -100,7 +104,10 @@ func (h *Handler) DidOpen(ctx context.Context, params *protocol.DidOpenTextDocum
 		Logbook: logbook,
 	})
 
-	return h.publishDiagnostics(ctx, params.TextDocument.URI, diags)
+	if err := h.publishDiagnostics(ctx, params.TextDocument.URI, diags); err != nil {
+		return err
+	}
+	return h.refreshInlayHints(ctx)
 }
 
 // DidChange handles the textDocument/didChange notification.
@@ -125,7 +132,30 @@ func (h *Handler) DidChange(ctx context.Context, params *protocol.DidChangeTextD
 		Logbook: logbook,
 	})
 
-	return h.publishDiagnostics(ctx, params.TextDocument.URI, diags)
+	if err := h.publishDiagnostics(ctx, params.TextDocument.URI, diags); err != nil {
+		return err
+	}
+	return h.refreshInlayHints(ctx)
+}
+
+// DidSave handles the textDocument/didSave notification.
+func (h *Handler) DidSave(ctx context.Context, _ *protocol.DidSaveTextDocumentParams) error {
+	return h.refreshInlayHints(ctx)
+}
+
+func (h *Handler) refreshInlayHints(_ context.Context) error {
+	if h.Conn == nil {
+		return nil
+	}
+	h.Logger.Debug("Refreshing inlay hints")
+	// Use a background context as this is an out-of-band request
+	go func() {
+		_, err := h.Conn.Call(context.Background(), "workspace/inlayHint/refresh", nil, nil)
+		if err != nil {
+			h.Logger.Warn("Failed to refresh inlay hints", zap.Error(err))
+		}
+	}()
+	return nil
 }
 
 // DidClose handles the textDocument/didClose notification.
@@ -516,19 +546,58 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 	if doc.Logbook == nil {
 		return nil, nil
 	}
+	res := make([]InlayHint, 0)
 
 	qsoCount, uniqueCalls, activatedGrids, collectedGrids := h.CalculateStatistics(doc.Logbook)
 
 	label := fmt.Sprintf("Total QSOs: %d | Callsigns: %d | Activated Grids: %d | Collected Grids: %d",
 		qsoCount, uniqueCalls, activatedGrids, collectedGrids)
 
-	return []InlayHint{
-		{
-			Position:     protocol.Position{Line: 0, Character: 0},
-			Label:        label,
-			PaddingRight: true,
-		},
-	}, nil
+	res = append(res, InlayHint{
+		Position:     protocol.Position{Line: 0, Character: 0},
+		Label:        label,
+		PaddingRight: true,
+	})
+
+	for _, q := range doc.Logbook.QSOs {
+		if q.MyGrid == "" || q.Grid == "" {
+			continue
+		}
+
+		lat1, lon1, err1 := GridToLatLon(q.MyGrid)
+		lat2, lon2, err2 := GridToLatLon(q.Grid)
+		if err1 != nil || err2 != nil {
+			continue
+		}
+
+		dist := CalculateDistance(lat1, lon1, lat2, lon2)
+		bearing := CalculateBearing(lat1, lon1, lat2, lon2)
+
+		// Find the Grid token to place the hint after it
+		var pos protocol.Position
+		found := false
+		for _, t := range q.Tokens {
+			if t.Type == TokenGrid {
+				pos = protocol.Position{
+					Line:      uint32(t.Range.End.Line),
+					Character: uint32(t.Range.End.Character),
+				}
+				found = true
+				break
+			}
+		}
+
+		if found {
+			hintLabel := fmt.Sprintf(" (%dkm %d°)", int(math.Round(dist)), int(math.Round(bearing)))
+			res = append(res, InlayHint{
+				Position:    pos,
+				Label:       hintLabel,
+				PaddingLeft: true,
+			})
+		}
+	}
+
+	return res, nil
 }
 
 // CalculateStatistics computes various metrics for the given logbook.

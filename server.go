@@ -3,6 +3,7 @@ package flelsp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 
@@ -27,6 +28,7 @@ func StartServer(logger *zap.Logger) {
 	handler, ctx, err := NewHandler(
 		context.Background(),
 		client,
+		conn,
 		logger,
 	)
 
@@ -35,7 +37,16 @@ func StartServer(logger *zap.Logger) {
 	}
 
 	serverHandler := protocol.ServerHandler(handler, jsonrpc2.MethodNotFoundHandler)
-	conn.Go(ctx, func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) error {
+	conn.Go(ctx, func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) (err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("panic in request handler", zap.Any("panic", r), zap.String("method", req.Method()))
+				// We can't easily return the error to the client here if reply was already used,
+				// but jsonrpc2 handles the return value of this func.
+				err = jsonrpc2.NewError(jsonrpc2.InternalError, fmt.Sprintf("panic: %v", r))
+			}
+		}()
+
 		switch req.Method() {
 		case "initialize":
 			var params protocol.InitializeParams
@@ -47,9 +58,14 @@ func StartServer(logger *zap.Logger) {
 				return reply(ctx, nil, err)
 			}
 			// Add inlayHintProvider support to the response
-			m, _ := json.Marshal(resp)
+			m, err := json.Marshal(resp)
+			if err != nil {
+				return reply(ctx, resp, nil)
+			}
 			var customResp map[string]interface{}
-			_ = json.Unmarshal(m, &customResp)
+			if err := json.Unmarshal(m, &customResp); err != nil || customResp == nil {
+				return reply(ctx, resp, nil)
+			}
 			if caps, ok := customResp["capabilities"].(map[string]interface{}); ok {
 				caps["inlayHintProvider"] = true
 			}
