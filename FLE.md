@@ -2,6 +2,8 @@
 
 Fast Log Entry (FLE) is a text-based logging format designed by DF3CB for rapid and efficient recording of amateur radio contacts.
 
+See the original documentation at https://df3cb.com/fle/documentation/
+
 ## Document Structure
 
 An FLE file consists of two main sections:
@@ -27,7 +29,7 @@ Keywords are case-insensitive and followed by a space and their value.
 | `date` | Operating Date | Format: `YYYY-MM-DD`. Multiple allowed to group QSOs. |
 
 > [!NOTE]
-> **Deviation from standard**: While strict FLE documentation suggests one `mycall` per log, this LSP allows several `mycall` declarations as long as they share the same **base callsign** (e.g., `F4JXQ`, `F4JXQ/P`, and `DL/F4JXQ` can co-exist). This allows switching between portable/mobile status in a single session.
+> **Deviation from standard**: While strict FLE documentation suggests one `mycall` per log, this LSP allows several `mycall` declarations as long as they share the same **base callsign** (e.g., `F4JXQ`, `F4JXQ/P`, and `DL/F4JXQ` can co-exist). This allows switching between portable/mobile status in a single session. Similarly it allows several `mygrid` declarations to support roving.
 
 ---
 

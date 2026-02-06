@@ -561,6 +561,31 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 	})
 
 	for _, q := range doc.Logbook.QSOs {
+		reportCount := 0
+		for _, t := range doc.Logbook.Tokens[q.TokenStart : q.TokenStart+q.TokenCount] {
+			if t.Type == TokenReport {
+				reportCount++
+				label := ""
+				switch reportCount {
+				case 1:
+					label = "Sent: "
+				case 2:
+					label = "Received: "
+				}
+
+				if label != "" {
+					res = append(res, InlayHint{
+						Position: protocol.Position{
+							Line:      uint32(t.Range.Start.Line),
+							Character: uint32(t.Range.Start.Character),
+						},
+						Label:       label,
+						PaddingLeft: false,
+					})
+				}
+			}
+		}
+
 		if q.MyGrid == "" || q.Grid == "" {
 			continue
 		}
