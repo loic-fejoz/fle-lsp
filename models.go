@@ -80,11 +80,13 @@ type QSO struct {
 
 // InternalState tracks the persistent state during parsing.
 type InternalState struct {
-	Date     time.Time
-	Band     string
-	Mode     string
-	LastTime string
-	MyGrid   string
+	Date        time.Time
+	Band        string
+	Mode        string
+	LastTime    string
+	MyGrid      string
+	BaseMyCall  string
+	SeenHeaders map[string]bool
 }
 
 // Severity represents the diagnostic severity level.

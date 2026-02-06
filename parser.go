@@ -56,7 +56,9 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 		Tokens: make([]Token, 0, estimatedQSOs*5), // ~5 tokens per QSO
 	}
 	diagnostics := make([]Diagnostic, 0, 32)
-	state := &InternalState{}
+	state := &InternalState{
+		SeenHeaders: make(map[string]bool),
+	}
 	interner := newStringInterner()
 
 	scanner := bufio.NewScanner(strings.NewReader(content))
@@ -74,6 +76,38 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 		if loc := headerRegex.FindStringSubmatchIndex(line); loc != nil {
 			key := interner.intern(strings.ToLower(line[loc[2]:loc[3]]))
 			val := line[loc[4]:loc[5]]
+
+			// Protocol Enforcement: Some headers must be unique per file
+			isUniqueHeader := false
+			switch key {
+			case "mycall", "mysota", "mywwff", "mypota":
+				isUniqueHeader = true
+			}
+
+			if isUniqueHeader {
+				if key == "mycall" {
+					base := BaseCallsign(val)
+					if state.BaseMyCall == "" {
+						state.BaseMyCall = base
+					} else if state.BaseMyCall != base {
+						diagnostics = append(diagnostics, Diagnostic{
+							Range:    Range{Start: Pos{int32(lineNumber - 1), int32(loc[2])}, End: Pos{int32(lineNumber - 1), int32(loc[3])}},
+							Message:  fmt.Sprintf("Keyword 'mycall' redefined with a different base callsign ('%s' vs '%s') is not allowed.", base, state.BaseMyCall),
+							Severity: SeverityError,
+						})
+						continue
+					}
+				} else if state.SeenHeaders[key] {
+					diagnostics = append(diagnostics, Diagnostic{
+						Range:    Range{Start: Pos{int32(lineNumber - 1), int32(loc[2])}, End: Pos{int32(lineNumber - 1), int32(loc[3])}},
+						Message:  fmt.Sprintf("Keyword '%s' already defined. Only one is allowed per file.", key),
+						Severity: SeverityError,
+					})
+					continue
+				}
+				state.SeenHeaders[key] = true
+			}
+
 			updateHeader(&logbook.Header, key, val)
 
 			if key == "mygrid" {

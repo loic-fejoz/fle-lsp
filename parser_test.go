@@ -248,3 +248,65 @@ mygrid JN38qr
 		}
 	}
 }
+func TestMultiGridAndProtocol(t *testing.T) {
+	content := `
+mycall F4JXQ
+mygrid JN38qr
+date 2023-10-26
+40m cw
+1200 F5ABC
+
+mygrid JN18du
+1205 F6DEF
+
+mycall EA1ABC # Error: Already defined
+mysota F/JU-001
+mysota F/JU-002 # Error: Already defined
+	`
+	logbook, diags, err := ParseFLE(content)
+	if err != nil {
+		t.Fatalf("ParseFLE failed: %v", err)
+	}
+
+	// 1. Check Multi-Grid
+	if len(logbook.QSOs) != 2 {
+		t.Fatalf("Expected 2 QSOs, got %d", len(logbook.QSOs))
+	}
+	if logbook.QSOs[0].MyGrid != "JN38qr" {
+		t.Errorf("QSO1 MyGrid mismatch: expected JN38qr, got %s", logbook.QSOs[0].MyGrid)
+	}
+	if logbook.QSOs[1].MyGrid != "JN18du" {
+		t.Errorf("QSO2 MyGrid mismatch: expected JN18du, got %s", logbook.QSOs[1].MyGrid)
+	}
+
+	expectedGrids := []string{"JN38qr", "JN18du"}
+	if len(logbook.ActivatedGrids) != 2 {
+		t.Errorf("Expected 2 activated grids, got %d", len(logbook.ActivatedGrids))
+	} else {
+		for i, g := range expectedGrids {
+			if logbook.ActivatedGrids[i] != g {
+				t.Errorf("ActivatedGrid[%d] mismatch: expected %s, got %s", i, g, logbook.ActivatedGrids[i])
+			}
+		}
+	}
+
+	// 2. Check Protocol Enforcement (Diagnostics)
+	foundRedundantCallErr := false
+	foundRedundantSota := false
+	for _, d := range diags {
+		// Error diagnostic for DIFFERENT base
+		if strings.Contains(d.Message, "mycall") && strings.Contains(d.Message, "different base") {
+			foundRedundantCallErr = true
+		}
+		if strings.Contains(d.Message, "mysota") && strings.Contains(d.Message, "already defined") {
+			foundRedundantSota = true
+		}
+	}
+
+	if !foundRedundantCallErr {
+		t.Error("Did not find error for mycall with different base")
+	}
+	if !foundRedundantSota {
+		t.Error("Did not find error for redundant mysota")
+	}
+}
