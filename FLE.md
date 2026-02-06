@@ -73,6 +73,8 @@ A QSO line typically follows this structure:
 
 - Lines starting with a blank space or containing only whitespace are ignored.
 - Inline comments can be placed in `[]` on a QSO line.
+- **Whole-line comments**: Lines starting with `#` are treated as comments and ignored by the parser.
+- **End-of-line comments (Deviation)**: This LSP supports comments at the end of any line starting with `# ` (a hash followed by a space). For example: `mycall F4JXQ # Home station`.
 
 ---
 

@@ -310,3 +310,46 @@ mysota F/JU-002 # Error: Already defined
 		t.Error("Did not find error for redundant mysota")
 	}
 }
+
+func TestEOLComments(t *testing.T) {
+	content := `
+# Whole line comment
+mycall F4JXQ # EOL Header comment
+mygrid JN38qr
+date 2023-10-26 # EOL Date comment
+40m cw # EOL BandMode comment
+1200 F5ABC # EOL QSO comment
+# Another whole line
+	`
+	logbook, diags, err := ParseFLE(content)
+	if err != nil {
+		t.Fatalf("ParseFLE failed: %v", err)
+	}
+
+	if len(diags) > 0 {
+		t.Errorf("Expected 0 diagnostics, got %d: %v", len(diags), diags)
+	}
+
+	if len(logbook.QSOs) != 1 {
+		t.Errorf("Expected 1 QSO, got %d", len(logbook.QSOs))
+	}
+
+	// Count comment tokens
+	commentCount := 0
+	for _, tok := range logbook.Tokens {
+		if tok.Type == TokenComment {
+			commentCount++
+		}
+	}
+
+	// 1. Whole line (line 2)
+	// 2. mycall EOL (line 3)
+	// 3. date EOL (line 5)
+	// 4. band/mode EOL (line 6)
+	// 5. QSO EOL (line 7)
+	// 6. Another whole line (line 8)
+	// Total 6
+	if commentCount != 6 {
+		t.Errorf("Expected 6 comment tokens, got %d", commentCount)
+	}
+}

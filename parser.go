@@ -67,8 +67,34 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 	for scanner.Scan() {
 		lineNumber++
 		rawLine := scanner.Text()
-		line := strings.TrimSpace(rawLine)
-		if line == "" || strings.HasPrefix(line, "#") {
+
+		// Handle comments (including EOL comments deviation)
+		processedLine := rawLine
+		commentStart := -1
+
+		trimmedRaw := strings.TrimLeft(rawLine, " \t")
+		if strings.HasPrefix(trimmedRaw, "#") {
+			// Whole line is a comment
+			commentStart = strings.Index(rawLine, "#")
+			processedLine = ""
+		} else if idx := strings.LastIndex(rawLine, "# "); idx != -1 {
+			// End of line comment
+			commentStart = idx
+			processedLine = rawLine[:idx]
+		}
+
+		if commentStart != -1 {
+			logbook.Tokens = append(logbook.Tokens, Token{
+				Range: Range{
+					Start: Pos{int32(lineNumber - 1), int32(commentStart)},
+					End:   Pos{int32(lineNumber - 1), int32(len(rawLine))},
+				},
+				Type: TokenComment,
+			})
+		}
+
+		line := strings.TrimSpace(processedLine)
+		if line == "" {
 			continue
 		}
 
