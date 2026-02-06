@@ -26,7 +26,7 @@ Read these files in `agent_docs/` to understand specific areas before contributi
 ## Linter Guidelines
 - We use **golangci-lint v2**.
 - Configuration is in `.golangci.yml` (requires `version: "2"`).
-- Always ensure `golangci-lint run` passes locally before submitting changes.
+- **Mandatory**: Always run `make lint` and ensure it passes before building your walkthrough or finalizing a task.
 
 > [!IMPORTANT]
 > Always run the build/test commands before finishing a task to ensure the server remains functional.

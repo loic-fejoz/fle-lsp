@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -198,7 +199,7 @@ func (h *Handler) SemanticTokensFull(_ context.Context, params *protocol.Semanti
 	// 1. Collect and sort all tokens
 	allTokens := append([]Token{}, doc.Logbook.Tokens...)
 	for _, qso := range doc.Logbook.QSOs {
-		allTokens = append(allTokens, qso.Tokens...)
+		allTokens = append(allTokens, doc.Logbook.Tokens[qso.TokenStart:qso.TokenStart+qso.TokenCount]...)
 	}
 
 	// Sort by line then character
@@ -209,17 +210,17 @@ func (h *Handler) SemanticTokensFull(_ context.Context, params *protocol.Semanti
 		return allTokens[i].Range.Start.Character < allTokens[j].Range.Start.Character
 	})
 
-	// Map to legend indices
+	// Map TokenType (iota) to legend indices
 	typeMap := map[TokenType]uint32{
 		TokenCallsign: 0, // SemanticTokenVariable
-		TokenComment:  1, // SemanticTokenString
-		TokenKeyword:  2, // SemanticTokenKeyword
 		TokenDate:     6, // custom "date"
 		TokenTime:     3, // SemanticTokenNumber
 		TokenBand:     4, // SemanticTokenType
 		TokenMode:     5, // SemanticTokenMacro
 		TokenName:     7, // custom "name"
 		TokenGrid:     0, // Variable
+		TokenComment:  1, // SemanticTokenString
+		TokenKeyword:  2, // SemanticTokenKeyword
 		TokenReport:   3, // Number
 		TokenExtra:    8, // custom "extra"
 	}
@@ -576,7 +577,7 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 		// Find the Grid token to place the hint after it
 		var pos protocol.Position
 		found := false
-		for _, t := range q.Tokens {
+		for _, t := range doc.Logbook.Tokens[q.TokenStart : q.TokenStart+q.TokenCount] {
 			if t.Type == TokenGrid {
 				pos = protocol.Position{
 					Line:      uint32(t.Range.End.Line),
@@ -789,6 +790,7 @@ func (h *Handler) normalizeLine(trimmed string) string {
 		if loc[10] != -1 {
 			extras = trimmed[loc[10]:loc[11]]
 			// Normalize grid in extras (e.g., #JN38QR -> #JN38qr)
+			extraGridRegex := regexp.MustCompile(`#([a-zA-Z0-9]+)`)
 			extras = extraGridRegex.ReplaceAllStringFunc(extras, func(m string) string {
 				return "#" + formatGrid(m[1:])
 			})

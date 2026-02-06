@@ -27,31 +27,31 @@ type Header struct {
 }
 
 // TokenType represents the type of semantic token for LSP highlighting.
-type TokenType string
+type TokenType uint8
 
 const (
 	// TokenCallsign represents a radio callsign.
-	TokenCallsign TokenType = "callsign"
+	TokenCallsign TokenType = iota
 	// TokenDate represents a date keyword or value.
-	TokenDate TokenType = "date"
+	TokenDate
 	// TokenTime represents a time value.
-	TokenTime TokenType = "time"
+	TokenTime
 	// TokenBand represents a frequency band.
-	TokenBand TokenType = "band"
+	TokenBand
 	// TokenMode represents a transmission mode.
-	TokenMode TokenType = "mode"
+	TokenMode
 	// TokenName represents a person's name.
-	TokenName TokenType = "name"
+	TokenName
 	// TokenGrid represents a Maidenhead locator.
-	TokenGrid TokenType = "grid"
+	TokenGrid
 	// TokenComment represents a free-text comment.
-	TokenComment TokenType = "comment"
+	TokenComment
 	// TokenKeyword represents a header keyword.
-	TokenKeyword TokenType = "keyword"
+	TokenKeyword
 	// TokenReport represents a signal report.
-	TokenReport TokenType = "report"
+	TokenReport
 	// TokenExtra represents extra or QSL information.
-	TokenExtra TokenType = "extra"
+	TokenExtra
 )
 
 // Token represents a single semantic piece of text.
@@ -63,18 +63,19 @@ type Token struct {
 // QSO represents a single amateur radio contact.
 type QSO struct {
 	Timestamp      time.Time
-	Callsign       string
-	Band           string
-	Mode           string
-	ReportSent     string
-	ReportReceived string
-	Name           string
-	Grid           string
-	Comment        string
-	QSLMsg         string
-	LineNumber     int     // For diagnostics mapping
-	Tokens         []Token // For semantic highlighting
-	MyGrid         string  // The active mygrid for this QSO
+	Callsign       string // Not interned (usually unique)
+	Band           string // Interned (highly repetitive)
+	Mode           string // Interned (highly repetitive)
+	ReportSent     string // Interned (highly repetitive)
+	ReportReceived string // Interned (highly repetitive)
+	Name           string // Interned
+	Grid           string // Interned
+	Comment        string // Not interned (long, unique)
+	QSLMsg         string // Not interned (long, unique)
+	LineNumber     int    // For diagnostics mapping
+	TokenStart     int32  // Index into Logbook.Tokens
+	TokenCount     int32  // Number of tokens in Logbook.Tokens
+	MyGrid         string // Interned (highly repetitive)
 }
 
 // InternalState tracks the persistent state during parsing.
@@ -123,8 +124,8 @@ type Range struct {
 
 // Pos represents a position in a document.
 type Pos struct {
-	Line      int
-	Character int
+	Line      int32
+	Character int32
 }
 
 // InlayHintParams represents textDocument/inlayHint parameters.

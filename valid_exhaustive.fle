@@ -1,7 +1,7 @@
 mycall F4JXQ
 mygrid JN35
 operator F4JXQ
-nickname Home
+nickname Loïc
 qslmsg Thanks for the QSO!
 mywwff FFF-1234
 mysota HU-001
@@ -53,6 +53,7 @@ day +
 4m data
 1500 OE1ABC <Rare 70MHz contact>
 
+mygrid JD45
 2m ssb
 1600 G0ABC 59 55 #IO91
 10 F1ABC 59 59 #JN38 <VHF contest>
