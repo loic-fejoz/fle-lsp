@@ -42,8 +42,8 @@ func NewHandler(ctx context.Context, client protocol.Client, conn jsonrpc2.Conn,
 }
 
 // Initialize handles the initialize request.
-func (h *Handler) Initialize(_ context.Context, _ *protocol.InitializeParams) (*protocol.InitializeResult, error) {
-	h.Logger.Debug("Initializing flelsp server")
+func (h *Handler) Initialize(_ context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
+	h.Logger.Info("Initializing flelsp server", zap.Any("params", params))
 	h.locationSources = DetectLocationSources()
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
@@ -51,7 +51,7 @@ func (h *Handler) Initialize(_ context.Context, _ *protocol.InitializeParams) (*
 			HoverProvider:          true,
 			DocumentSymbolProvider: true,
 			CompletionProvider: &protocol.CompletionOptions{
-				TriggerCharacters: []string{" "},
+				TriggerCharacters: []string{"@", "#"},
 			},
 			DocumentFormattingProvider:      true,
 			DocumentRangeFormattingProvider: true,
@@ -61,15 +61,15 @@ func (h *Handler) Initialize(_ context.Context, _ *protocol.InitializeParams) (*
 			SemanticTokensProvider: map[string]interface{}{
 				"legend": protocol.SemanticTokensLegend{
 					TokenTypes: []protocol.SemanticTokenTypes{
-						protocol.SemanticTokenVariable, // 0: Callsign, Grid
-						protocol.SemanticTokenString,   // 1: Comment, Name, Extra
-						protocol.SemanticTokenKeyword,  // 2: Keyword, Date
-						protocol.SemanticTokenNumber,   // 3: Time, Report
-						protocol.SemanticTokenType,     // 4: Band
-						protocol.SemanticTokenMacro,    // 5: Mode
-						"date",                         // 6: Date value
-						"name",                         // 7: Operator name (@)
-						"extra",                        // 8: Extra/QSL info ([])
+						protocol.SemanticTokenVariable,  // 0: Callsign, Grid
+						protocol.SemanticTokenString,    // 1: Name
+						protocol.SemanticTokenKeyword,   // 2: Keyword, Date keyword
+						protocol.SemanticTokenNumber,    // 3: Time, Report
+						protocol.SemanticTokenType,      // 4: Band
+						protocol.SemanticTokenMacro,     // 5: Mode
+						protocol.SemanticTokenOperator,  // 6: Date value
+						protocol.SemanticTokenParameter, // 7: Operator name (@)
+						protocol.SemanticTokenComment,   // 8: Comment, Extra/QSL info ([])
 					},
 					TokenModifiers: []protocol.SemanticTokenModifiers{},
 				},
@@ -155,6 +155,10 @@ func (h *Handler) refreshInlayHints(_ context.Context) error {
 		if err != nil {
 			h.Logger.Warn("Failed to refresh inlay hints", zap.Error(err))
 		}
+		_, err = h.Conn.Call(context.Background(), "workspace/semanticTokens/refresh", nil, nil)
+		if err != nil {
+			h.Logger.Warn("Failed to refresh semantic tokens", zap.Error(err))
+		}
 	}()
 	return nil
 }
@@ -187,6 +191,7 @@ func (h *Handler) Exit(_ context.Context) error {
 // SemanticTokensFull handles the textDocument/semanticTokens/full request.
 func (h *Handler) SemanticTokensFull(_ context.Context, params *protocol.SemanticTokensParams) (*protocol.SemanticTokens, error) {
 	filename := params.TextDocument.URI.Filename()
+	h.Logger.Info("SemanticTokensFull", zap.String("uri", filename))
 	v, ok := h.documents.Load(filename)
 	if !ok {
 		return nil, fmt.Errorf("document not found")
@@ -196,13 +201,15 @@ func (h *Handler) SemanticTokensFull(_ context.Context, params *protocol.Semanti
 		return nil, nil
 	}
 
-	// 1. Collect and sort all tokens
-	allTokens := append([]Token{}, doc.Logbook.Tokens...)
-	for _, qso := range doc.Logbook.QSOs {
-		allTokens = append(allTokens, doc.Logbook.Tokens[qso.TokenStart:qso.TokenStart+qso.TokenCount]...)
+	// 1. Use tokens from logbook
+	tokens := doc.Logbook.Tokens
+	if len(tokens) == 0 {
+		return nil, nil
 	}
 
 	// Sort by line then character
+	allTokens := make([]Token, len(tokens))
+	copy(allTokens, tokens)
 	sort.Slice(allTokens, func(i, j int) bool {
 		if allTokens[i].Range.Start.Line != allTokens[j].Range.Start.Line {
 			return allTokens[i].Range.Start.Line < allTokens[j].Range.Start.Line
@@ -210,19 +217,34 @@ func (h *Handler) SemanticTokensFull(_ context.Context, params *protocol.Semanti
 		return allTokens[i].Range.Start.Character < allTokens[j].Range.Start.Character
 	})
 
+	// Deduplicate
+	uniqueTokens := make([]Token, 0, len(allTokens))
+	if len(allTokens) > 0 {
+		uniqueTokens = append(uniqueTokens, allTokens[0])
+		for i := 1; i < len(allTokens); i++ {
+			// Skip if same range (roughly)
+			if allTokens[i].Range.Start == allTokens[i-1].Range.Start && allTokens[i].Range.End == allTokens[i-1].Range.End {
+				continue
+			}
+			uniqueTokens = append(uniqueTokens, allTokens[i])
+		}
+	}
+	allTokens = uniqueTokens
+	h.Logger.Info("Sending semantic tokens", zap.Int("count", len(allTokens)))
+
 	// Map TokenType (iota) to legend indices
 	typeMap := map[TokenType]uint32{
 		TokenCallsign: 0, // SemanticTokenVariable
-		TokenDate:     6, // custom "date"
+		TokenDate:     6, // SemanticTokenOperator (Date value)
 		TokenTime:     3, // SemanticTokenNumber
 		TokenBand:     4, // SemanticTokenType
 		TokenMode:     5, // SemanticTokenMacro
-		TokenName:     7, // custom "name"
-		TokenGrid:     0, // Variable
-		TokenComment:  1, // SemanticTokenString
+		TokenName:     7, // SemanticTokenParameter (Operator name)
+		TokenGrid:     0, // SemanticTokenVariable (Grid)
+		TokenComment:  8, // SemanticTokenComment
 		TokenKeyword:  2, // SemanticTokenKeyword
-		TokenReport:   3, // Number
-		TokenExtra:    8, // custom "extra"
+		TokenReport:   3, // SemanticTokenNumber (Report)
+		TokenExtra:    8, // SemanticTokenComment (Extra info)
 	}
 	data := make([]uint32, 0)
 	var lastLine, lastChar uint32
@@ -232,9 +254,18 @@ func (h *Handler) SemanticTokensFull(_ context.Context, params *protocol.Semanti
 		char := uint32(t.Range.Start.Character)
 		length := uint32(t.Range.End.Character - t.Range.Start.Character)
 
+		if line < lastLine {
+			h.Logger.Warn("Token line went backwards", zap.Uint32("line", line), zap.Uint32("lastLine", lastLine))
+			continue
+		}
+
 		deltaLine := line - lastLine
 		deltaChar := char
 		if deltaLine == 0 {
+			if char < lastChar {
+				h.Logger.Warn("Token char went backwards", zap.Uint32("line", line), zap.Uint32("char", char), zap.Uint32("lastChar", lastChar))
+				continue
+			}
 			deltaChar = char - lastChar
 		}
 
@@ -846,6 +877,7 @@ func (h *Handler) normalizeLine(trimmed string) string {
 // Completion handles the textDocument/completion request.
 func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParams) (*protocol.CompletionList, error) {
 	filename := params.TextDocument.URI.Filename()
+	h.Logger.Info("Completion", zap.String("uri", filename), zap.Int("line", int(params.Position.Line)), zap.Int("char", int(params.Position.Character)))
 	v, ok := h.documents.Load(filename)
 	if !ok {
 		return nil, nil
@@ -872,21 +904,39 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 	}
 	trimmedPrefix := strings.TrimSpace(currentLine[:charPos])
 
+	// Calculate word range for TextEdit
+	wordStart := charPos
+	for wordStart > 0 && !isSpaceOrSpecial(currentLine[wordStart-1]) && currentLine[wordStart-1] != '@' && currentLine[wordStart-1] != '#' {
+		wordStart--
+	}
+	replacementRange := protocol.Range{
+		Start: protocol.Position{Line: lineNum, Character: wordStart},
+		End:   protocol.Position{Line: lineNum, Character: charPos},
+	}
+
 	// Context: Start of line
 	if trimmedPrefix == "" {
 		items = append(items, protocol.CompletionItem{
-			Label:      "Current UTC Time: " + nowUTC,
+			Label: nowUTC,
+			TextEdit: &protocol.TextEdit{
+				Range:   replacementRange,
+				NewText: nowUTC,
+			},
 			InsertText: nowUTC,
-			Kind:       protocol.CompletionItemKindSnippet,
-			Detail:     "Insert current UTC time",
+			Kind:       protocol.CompletionItemKindText,
+			Detail:     "Current UTC time",
 			SortText:   "00",
 		})
 
 		items = append(items, protocol.CompletionItem{
-			Label:      "date " + dateUTC,
+			Label: "date " + dateUTC,
+			TextEdit: &protocol.TextEdit{
+				Range:   replacementRange,
+				NewText: "date " + dateUTC,
+			},
 			InsertText: "date " + dateUTC,
-			Kind:       protocol.CompletionItemKindSnippet,
-			Detail:     "Suggest current UTC date",
+			Kind:       protocol.CompletionItemKindText,
+			Detail:     "Current UTC date",
 			SortText:   "01",
 		})
 	}
@@ -894,9 +944,13 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 	// Context: After 'date' keyword
 	if strings.ToLower(trimmedPrefix) == "date" {
 		items = append(items, protocol.CompletionItem{
-			Label:      dateUTC,
+			Label: dateUTC,
+			TextEdit: &protocol.TextEdit{
+				Range:   replacementRange,
+				NewText: dateUTC,
+			},
 			InsertText: dateUTC,
-			Kind:       protocol.CompletionItemKindSnippet,
+			Kind:       protocol.CompletionItemKindText,
 			Detail:     "Current UTC date",
 			SortText:   "00",
 		})
@@ -917,9 +971,13 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 
 			if grid != "" {
 				items = append(items, protocol.CompletionItem{
-					Label:      fmt.Sprintf("[%s] %s", source.Name, grid),
+					Label: fmt.Sprintf("[%s] %s", source.Name, grid),
+					TextEdit: &protocol.TextEdit{
+						Range:   replacementRange,
+						NewText: grid,
+					},
 					InsertText: grid,
-					Kind:       protocol.CompletionItemKindSnippet,
+					Kind:       protocol.CompletionItemKindText,
 					Detail:     "Maidenhead grid from " + source.Name,
 					SortText:   "00",
 				})
@@ -932,7 +990,12 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 	for _, k := range keywords {
 		items = append(items, protocol.CompletionItem{
 			Label: k,
-			Kind:  protocol.CompletionItemKindKeyword,
+			TextEdit: &protocol.TextEdit{
+				Range:   replacementRange,
+				NewText: k,
+			},
+			InsertText: k,
+			Kind:       protocol.CompletionItemKindKeyword,
 		})
 	}
 
@@ -940,9 +1003,14 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 	bands := []string{"160m", "80m", "60m", "40m", "30m", "20m", "17m", "15m", "12m", "10m", "6m", "4m", "2m", "1.25m", "70cm"}
 	for _, b := range bands {
 		items = append(items, protocol.CompletionItem{
-			Label:  b,
-			Kind:   protocol.CompletionItemKindEnumMember,
-			Detail: "Band",
+			Label: b,
+			TextEdit: &protocol.TextEdit{
+				Range:   replacementRange,
+				NewText: b,
+			},
+			InsertText: b,
+			Kind:       protocol.CompletionItemKindEnumMember,
+			Detail:     "Band",
 		})
 	}
 
@@ -950,9 +1018,14 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 	modes := []string{"CW", "SSB", "AM", "FM", "RTTY", "FT8", "PSK", "FT4", "DATA", "JS8", "MFSK"}
 	for _, m := range modes {
 		items = append(items, protocol.CompletionItem{
-			Label:  m,
-			Kind:   protocol.CompletionItemKindEnumMember,
-			Detail: "Mode",
+			Label: m,
+			TextEdit: &protocol.TextEdit{
+				Range:   replacementRange,
+				NewText: m,
+			},
+			InsertText: m,
+			Kind:       protocol.CompletionItemKindEnumMember,
+			Detail:     "Mode",
 		})
 	}
 
