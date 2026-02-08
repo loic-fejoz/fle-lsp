@@ -662,6 +662,67 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 		PaddingRight: true,
 	})
 
+	type dailyStats struct {
+		qsoCount int
+		calls    map[string]bool
+		grids    map[string]bool
+	}
+	daily := make(map[string]*dailyStats)
+	for _, q := range doc.Logbook.QSOs {
+		d := q.Timestamp.Format("2006-01-02")
+		if daily[d] == nil {
+			daily[d] = &dailyStats{calls: make(map[string]bool), grids: make(map[string]bool)}
+		}
+		stats := daily[d]
+		stats.qsoCount++
+		stats.calls[BaseCallsign(q.Callsign)] = true
+		if q.Grid != "" {
+			stats.grids[formatGrid(q.Grid)] = true
+		}
+	}
+
+	var currentDate time.Time
+	lines := strings.Split(doc.Text, "\n")
+	for _, t := range doc.Logbook.Tokens {
+		if t.Type == TokenDate {
+			lineText := lines[t.Range.Start.Line]
+			trimmed := strings.TrimSpace(lineText)
+			lowerTrimmed := strings.ToLower(trimmed)
+
+			if strings.HasPrefix(lowerTrimmed, "date ") {
+				dStr := strings.TrimSpace(trimmed[5:])
+				if d, err := time.Parse("2006-01-02", dStr); err == nil {
+					currentDate = d
+				}
+			} else if strings.HasPrefix(lowerTrimmed, "day ") && strings.Contains(trimmed, "+") {
+				plusCount := strings.Count(trimmed, "+")
+				if !currentDate.IsZero() {
+					currentDate = currentDate.AddDate(0, 0, plusCount)
+				}
+			} else {
+				if d, err := time.Parse("2006-01-02", trimmed); err == nil {
+					currentDate = d
+				}
+			}
+
+			if !currentDate.IsZero() {
+				dKey := currentDate.Format("2006-01-02")
+				if s, ok := daily[dKey]; ok {
+					dailyLabel := fmt.Sprintf("Daily QSOs: %d | Callsigns: %d | Grids: %d", s.qsoCount, len(s.calls), len(s.grids))
+					res = append(res, InlayHint{
+						Position: protocol.Position{
+							Line:      uint32(t.Range.End.Line),
+							Character: uint32(t.Range.End.Character),
+						},
+						Label:        dailyLabel,
+						PaddingLeft:  true,
+						PaddingRight: false,
+					})
+				}
+			}
+		}
+	}
+
 	for _, q := range doc.Logbook.QSOs {
 		reportCount := 0
 		for _, t := range doc.Logbook.Tokens[q.TokenStart : q.TokenStart+q.TokenCount] {

@@ -567,9 +567,9 @@ mygrid JN39aa
 		t.Fatalf("InlayHint failed: %v", err)
 	}
 
-	// 1 (summary) + 2 (RST for EA1ABC) + 1 (distance/bearing for G4XYZ) + 1 (RST for G4XYZ) = 5
-	if len(hints) != 5 {
-		t.Fatalf("Expected 5 inlay hints, got %d", len(hints))
+	// 1 (summary) + 1 (daily stats) + 2 (RST for EA1ABC) + 1 (distance/bearing for G4XYZ) + 1 (RST for G4XYZ) = 6
+	if len(hints) != 6 {
+		t.Fatalf("Expected 6 inlay hints, got %d", len(hints))
 	}
 
 	summaryHint := hints[0]
@@ -578,22 +578,28 @@ mygrid JN39aa
 		t.Errorf("Expected summary label %q, got %q", wantSummary, summaryHint.Label)
 	}
 
+	// Second inlay hint should be the Daily Statistics for 2026-02-01
+	dailyHint := hints[1]
+	if !strings.Contains(dailyHint.Label, "Daily QSOs: 3") || !strings.Contains(dailyHint.Label, "Callsigns: 3") {
+		t.Errorf("Expected daily statistics hint, got %q", dailyHint.Label)
+	}
+
 	// First QSO: EA1ABC 59 55 -> Should have Sent: and Received: hints
-	sentHint := hints[1]
+	sentHint := hints[2]
 	if sentHint.Label != "Sent: " {
 		t.Errorf("Expected 'Sent: ', got %q", sentHint.Label)
 	}
-	receivedHint := hints[2]
+	receivedHint := hints[3]
 	if receivedHint.Label != "Received: " {
 		t.Errorf("Expected 'Received: ', got %q", receivedHint.Label)
 	}
 
 	// Third QSO: G4XYZ #JN18du 599 -> Should have Sent: and distance/bearing
-	gridHint := hints[3] // order might depend on implementation, but let's check
+	gridHint := hints[4] // order might depend on implementation, but let's check
 	// JN39aa to JN18du is approx 374km 258°
 	if !strings.Contains(gridHint.Label, "km") || !strings.Contains(gridHint.Label, "°") {
 		// Maybe it's the other way around?
-		gridHint = hints[4]
+		gridHint = hints[5]
 	}
 	if !strings.Contains(gridHint.Label, "km") || !strings.Contains(gridHint.Label, "°") {
 		t.Errorf("Expected grid hint to contain distance and bearing, got %q", gridHint.Label)
@@ -703,5 +709,40 @@ func TestHandler_Hover_References(t *testing.T) {
 	hover, _ = h.Hover(context.Background(), params)
 	if hover == nil || !strings.Contains(hover.Contents.Value, "wwff.co/directory/?showRef=ONFF-0001") {
 		t.Errorf("Expected WWFF link in hover, got %v", hover)
+	}
+}
+
+func TestHandler_InlayHint_DailyStats(t *testing.T) {
+	content := "mycall F4JXQ\ndate 2026-02-01\n40m ssb\n1200 EA1ABC\n1205 EA2ABC\nday +\n20m cw\n1300 G3XYZ\n1305 G4XYZ\n"
+	h, _ := setupTestHandler(t, content)
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	params := &InlayHintParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+	}
+
+	hints, _ := h.InlayHint(context.Background(), params)
+
+	foundDate1 := false
+	foundDayPlus := false
+
+	for _, hint := range hints {
+		if hint.Position.Line == 1 { // date 2026-02-01
+			if strings.Contains(hint.Label, "Daily QSOs: 2") && strings.Contains(hint.Label, "Callsigns: 2") {
+				foundDate1 = true
+			}
+		}
+		if hint.Position.Line == 5 { // day + (2026-02-02)
+			if strings.Contains(hint.Label, "Daily QSOs: 2") && strings.Contains(hint.Label, "Callsigns: 2") {
+				foundDayPlus = true
+			}
+		}
+	}
+
+	if !foundDate1 {
+		t.Errorf("Did not find expected inlay hint on date 2026-02-01 line, hints: %v", hints)
+	}
+	if !foundDayPlus {
+		t.Errorf("Did not find expected inlay hint on day + line, hints: %v", hints)
 	}
 }
