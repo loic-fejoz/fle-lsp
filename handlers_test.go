@@ -589,3 +589,77 @@ mygrid JN39aa
 		t.Errorf("Expected grid hint to contain distance and bearing, got %q", gridHint.Label)
 	}
 }
+func TestHandler_Completion_SmartFiltering(t *testing.T) {
+	content := "mycall F4JXQ/P\nmysota HU-001\n"
+	h, _ := setupTestHandler(t, content)
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	// Trigger completion at start of 3rd line
+	params := &protocol.CompletionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+			Position:     protocol.Position{Line: 2, Character: 0},
+		},
+	}
+
+	list, err := h.Completion(context.Background(), params)
+	if err != nil {
+		t.Fatalf("Completion failed: %v", err)
+	}
+
+	hasMySota := false
+	hasMyWWFF := false
+	hasMyCall := false
+	hasMyGrid := false
+
+	for _, item := range list.Items {
+		if item.Label == "mysota" {
+			hasMySota = true
+		}
+		if item.Label == "mywwff" {
+			hasMyWWFF = true
+		}
+		if item.Label == "mycall" {
+			hasMyCall = true
+		}
+		if item.Label == "mygrid" {
+			hasMyGrid = true
+		}
+	}
+
+	if hasMySota {
+		t.Error("Did not expect 'mysota' in completion (already used)")
+	}
+	if !hasMyWWFF {
+		t.Error("Expected 'mywwff' in completion (not yet used)")
+	}
+	if !hasMyCall {
+		t.Error("Expected 'mycall' keyword in completion (relaxed for variations)")
+	}
+	if !hasMyGrid {
+		t.Error("Expected 'mygrid' in completion (relaxed)")
+	}
+
+	// Now check 'mycall ' context
+	h2, _ := setupTestHandler(t, "mycall F4JXQ/P\nmycall ")
+	params2 := &protocol.CompletionParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+			Position:     protocol.Position{Line: 1, Character: 7},
+		},
+	}
+	list2, err := h2.Completion(context.Background(), params2)
+	if err != nil {
+		t.Fatalf("Completion failed: %v", err)
+	}
+
+	foundF4JXQ := false
+	for _, item := range list2.Items {
+		if item.Label == "F4JXQ" {
+			foundF4JXQ = true
+		}
+	}
+	if !foundF4JXQ {
+		t.Error("Expected variation 'F4JXQ' when completing after 'mycall '")
+	}
+}

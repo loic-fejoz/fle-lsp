@@ -986,9 +986,43 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 		}
 	}
 
+	// Context: After 'mycall' keyword
+	if strings.ToLower(trimmedPrefix) == "mycall" {
+		if doc.Logbook.BaseMyCall != "" {
+			base := doc.Logbook.BaseMyCall
+			variations := []string{base, base + "/P", base + "/M"}
+			for _, v := range variations {
+				items = append(items, protocol.CompletionItem{
+					Label: v,
+					TextEdit: &protocol.TextEdit{
+						Range:   replacementRange,
+						NewText: v,
+					},
+					InsertText: v,
+					Kind:       protocol.CompletionItemKindText,
+					Detail:     "Callsign variation",
+					SortText:   "00",
+				})
+			}
+		}
+	}
+
 	// 2. Add Keywords
 	keywords := []string{"mycall", "mygrid", "operator", "nickname", "qslmsg", "mywwff", "mysota", "mypota", "date"}
+	uniqueKeywords := map[string]bool{
+		"mywwff":   true,
+		"mysota":   true,
+		"mypota":   true,
+		"nickname": true,
+		"qslmsg":   true,
+	}
+
 	for _, k := range keywords {
+		// Filter out unique keywords if already seen
+		if uniqueKeywords[k] && doc.Logbook.SeenHeaders[k] {
+			continue
+		}
+
 		items = append(items, protocol.CompletionItem{
 			Label: k,
 			TextEdit: &protocol.TextEdit{

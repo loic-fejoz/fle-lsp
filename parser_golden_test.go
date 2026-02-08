@@ -41,8 +41,8 @@ func TestParseValidExhaustiveFile(t *testing.T) {
 		}
 	}
 
-	// Based on manual inspection, we expect 26 QSOs
-	expectedQSOs := 26
+	// Based on manual inspection, we expect 28 QSOs
+	expectedQSOs := 28
 	if len(logbook.QSOs) != expectedQSOs {
 		t.Errorf("Expected %d QSOs, got %d", expectedQSOs, len(logbook.QSOs))
 	}

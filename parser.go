@@ -52,13 +52,12 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 		estimatedQSOs = 50
 	}
 	logbook := &Logbook{
-		QSOs:   make([]QSO, 0, estimatedQSOs),
-		Tokens: make([]Token, 0, estimatedQSOs*5), // ~5 tokens per QSO
-	}
-	diagnostics := make([]Diagnostic, 0, 32)
-	state := &InternalState{
+		QSOs:        make([]QSO, 0, estimatedQSOs),
+		Tokens:      make([]Token, 0, estimatedQSOs*5), // ~5 tokens per QSO
 		SeenHeaders: make(map[string]bool),
 	}
+	diagnostics := make([]Diagnostic, 0, 32)
+	state := &InternalState{}
 	interner := newStringInterner()
 
 	scanner := bufio.NewScanner(strings.NewReader(content))
@@ -106,7 +105,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			// Protocol Enforcement: Some headers must be unique per file
 			isUniqueHeader := false
 			switch key {
-			case "mycall", "mysota", "mywwff", "mypota":
+			case "mycall", "mysota", "mywwff", "mypota", "nickname", "qslmsg":
 				isUniqueHeader = true
 			}
 
@@ -123,7 +122,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 						})
 						continue
 					}
-				} else if state.SeenHeaders[key] {
+				} else if logbook.SeenHeaders[key] {
 					diagnostics = append(diagnostics, Diagnostic{
 						Range:    Range{Start: Pos{int32(lineNumber - 1), int32(loc[2])}, End: Pos{int32(lineNumber - 1), int32(loc[3])}},
 						Message:  fmt.Sprintf("Keyword '%s' already defined. Only one is allowed per file.", key),
@@ -131,7 +130,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 					})
 					continue
 				}
-				state.SeenHeaders[key] = true
+				logbook.SeenHeaders[key] = true
 			}
 
 			updateHeader(&logbook.Header, key, val)
@@ -317,6 +316,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 		})
 	}
 
+	logbook.BaseMyCall = state.BaseMyCall
 	return logbook, diagnostics, nil
 }
 

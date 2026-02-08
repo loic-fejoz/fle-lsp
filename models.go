@@ -12,6 +12,8 @@ type Logbook struct {
 	QSOs           []QSO
 	Tokens         []Token  // Global tokens like header keywords, dates, etc.
 	ActivatedGrids []string // All unique mygrid values encountered
+	SeenHeaders    map[string]bool
+	BaseMyCall     string
 }
 
 // Header contains station and operator information.
@@ -80,13 +82,12 @@ type QSO struct {
 
 // InternalState tracks the persistent state during parsing.
 type InternalState struct {
-	Date        time.Time
-	Band        string
-	Mode        string
-	LastTime    string
-	MyGrid      string
-	BaseMyCall  string
-	SeenHeaders map[string]bool
+	Date       time.Time
+	Band       string
+	Mode       string
+	LastTime   string
+	MyGrid     string
+	BaseMyCall string
 }
 
 // Severity represents the diagnostic severity level.
