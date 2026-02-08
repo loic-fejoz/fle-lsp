@@ -1,0 +1,454 @@
+{
+  "name": "fle",
+  "rules": {
+    "source_file": {
+      "type": "REPEAT",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "header"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "date_command"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "day_command"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "band_mode_line"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "qso_line"
+          }
+        ]
+      }
+    },
+    "comment": {
+      "type": "PATTERN",
+      "value": "#.*"
+    },
+    "header": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "PATTERN",
+                "value": "[mM][yY][cC][aA][lL][lL]"
+              },
+              {
+                "type": "PATTERN",
+                "value": "[mM][yY][gG][rR][iI][dD]"
+              },
+              {
+                "type": "PATTERN",
+                "value": "[oO][pP][eE][rR][aA][tT][oO][rR]"
+              },
+              {
+                "type": "PATTERN",
+                "value": "[nN][iI][cC][kK][nN][aA][mM][eE]"
+              },
+              {
+                "type": "PATTERN",
+                "value": "[qQ][sS][lL][mM][sS][gG]"
+              },
+              {
+                "type": "PATTERN",
+                "value": "[mM][yY][wW][wW][fF][fF]"
+              },
+              {
+                "type": "PATTERN",
+                "value": "[mM][yY][sS][oO][tT][aA]"
+              },
+              {
+                "type": "PATTERN",
+                "value": "[mM][yY][pP][oO][tT][aA]"
+              }
+            ]
+          },
+          "named": true,
+          "value": "keyword"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "header_value"
+        }
+      ]
+    },
+    "header_value": {
+      "type": "PATTERN",
+      "value": "[^\\n\\r]+"
+    },
+    "date_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "PATTERN",
+            "value": "[dD][aA][tT][eE]"
+          },
+          "named": true,
+          "value": "keyword"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "date_value"
+        }
+      ]
+    },
+    "date_value": {
+      "type": "PATTERN",
+      "value": "\\d{4}-\\d{2}-\\d{2}"
+    },
+    "day_command": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "PATTERN",
+            "value": "[dD][aA][yY]"
+          },
+          "named": true,
+          "value": "keyword"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "day_value"
+        }
+      ]
+    },
+    "day_value": {
+      "type": "PATTERN",
+      "value": "\\++"
+    },
+    "band_mode_line": {
+      "type": "PREC_LEFT",
+      "value": 1,
+      "content": {
+        "type": "REPEAT1",
+        "content": {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "band"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "mode"
+            }
+          ]
+        }
+      }
+    },
+    "band": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "PATTERN",
+          "value": "\\d+(\\.\\d+)?([mM]|[cC][mM])"
+        },
+        {
+          "type": "PATTERN",
+          "value": "\\d+\\.\\d+"
+        }
+      ]
+    },
+    "mode": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "CW"
+        },
+        {
+          "type": "STRING",
+          "value": "SSB"
+        },
+        {
+          "type": "STRING",
+          "value": "FM"
+        },
+        {
+          "type": "STRING",
+          "value": "AM"
+        },
+        {
+          "type": "STRING",
+          "value": "DIGI"
+        },
+        {
+          "type": "STRING",
+          "value": "FT8"
+        },
+        {
+          "type": "STRING",
+          "value": "FT4"
+        },
+        {
+          "type": "STRING",
+          "value": "PSK"
+        },
+        {
+          "type": "STRING",
+          "value": "RTTY"
+        },
+        {
+          "type": "STRING",
+          "value": "VARAC"
+        },
+        {
+          "type": "STRING",
+          "value": "MFSK"
+        },
+        {
+          "type": "STRING",
+          "value": "DATA"
+        },
+        {
+          "type": "STRING",
+          "value": "JS8"
+        },
+        {
+          "type": "STRING",
+          "value": "cw"
+        },
+        {
+          "type": "STRING",
+          "value": "ssb"
+        },
+        {
+          "type": "STRING",
+          "value": "fm"
+        },
+        {
+          "type": "STRING",
+          "value": "am"
+        },
+        {
+          "type": "STRING",
+          "value": "digi"
+        },
+        {
+          "type": "STRING",
+          "value": "ft8"
+        },
+        {
+          "type": "STRING",
+          "value": "ft4"
+        },
+        {
+          "type": "STRING",
+          "value": "psk"
+        },
+        {
+          "type": "STRING",
+          "value": "rtty"
+        },
+        {
+          "type": "STRING",
+          "value": "varac"
+        },
+        {
+          "type": "STRING",
+          "value": "mfsk"
+        },
+        {
+          "type": "STRING",
+          "value": "data"
+        },
+        {
+          "type": "STRING",
+          "value": "js8"
+        }
+      ]
+    },
+    "qso_line": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "time"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "SYMBOL",
+          "name": "callsign"
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "rst_sent"
+                },
+                {
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "rst_rcvd"
+                    },
+                    {
+                      "type": "BLANK"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "qso_extra"
+          }
+        }
+      ]
+    },
+    "time": {
+      "type": "PATTERN",
+      "value": "\\d{2,4}"
+    },
+    "callsign": {
+      "type": "PATTERN",
+      "value": "[a-zA-Z0-9/]+"
+    },
+    "rst_sent": {
+      "type": "PATTERN",
+      "value": "\\d{1,3}"
+    },
+    "rst_rcvd": {
+      "type": "PATTERN",
+      "value": "\\d{1,3}"
+    },
+    "qso_extra": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "grid"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "name"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "inline_comment"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "qsl_info"
+        }
+      ]
+    },
+    "grid": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "#"
+        },
+        {
+          "type": "PATTERN",
+          "value": "[a-zA-Z0-9]+"
+        }
+      ]
+    },
+    "name": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "@"
+        },
+        {
+          "type": "PATTERN",
+          "value": "[^\\s\\n\\r]+"
+        }
+      ]
+    },
+    "inline_comment": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "["
+        },
+        {
+          "type": "PATTERN",
+          "value": "[^\\]]+"
+        },
+        {
+          "type": "STRING",
+          "value": "]"
+        }
+      ]
+    },
+    "qsl_info": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "<"
+        },
+        {
+          "type": "PATTERN",
+          "value": "[^>]+"
+        },
+        {
+          "type": "STRING",
+          "value": ">"
+        }
+      ]
+    }
+  },
+  "extras": [
+    {
+      "type": "PATTERN",
+      "value": "\\s"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "comment"
+    }
+  ],
+  "conflicts": [
+    [
+      "qso_line"
+    ],
+    [
+      "band_mode_line"
+    ]
+  ],
+  "precedences": [],
+  "externals": [],
+  "inline": [],
+  "supertypes": []
+}

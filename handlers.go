@@ -157,7 +157,8 @@ func (h *Handler) refreshInlayHints(_ context.Context) error {
 		}
 		_, err = h.Conn.Call(context.Background(), "workspace/semanticTokens/refresh", nil, nil)
 		if err != nil {
-			h.Logger.Warn("Failed to refresh semantic tokens", zap.Error(err))
+			// Zed doesn't support this yet, but other clients might.
+			h.Logger.Debug("Failed to refresh semantic tokens (this is expected on some clients)", zap.Error(err))
 		}
 	}()
 	return nil
@@ -239,7 +240,7 @@ func (h *Handler) SemanticTokensFull(_ context.Context, params *protocol.Semanti
 		TokenTime:     3, // SemanticTokenNumber
 		TokenBand:     4, // SemanticTokenType
 		TokenMode:     5, // SemanticTokenMacro
-		TokenName:     7, // SemanticTokenParameter (Operator name)
+		TokenName:     1, // SemanticTokenString
 		TokenGrid:     0, // SemanticTokenVariable (Grid)
 		TokenComment:  8, // SemanticTokenComment
 		TokenKeyword:  2, // SemanticTokenKeyword

@@ -1,0 +1,363 @@
+[
+  {
+    "type": "band",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "band_mode_line",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "band",
+          "named": true
+        },
+        {
+          "type": "mode",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "date_command",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "date_value",
+          "named": true
+        },
+        {
+          "type": "keyword",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "day_command",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "day_value",
+          "named": true
+        },
+        {
+          "type": "keyword",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "grid",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "header",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "header_value",
+          "named": true
+        },
+        {
+          "type": "keyword",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "inline_comment",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "mode",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "name",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "qsl_info",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "qso_extra",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "grid",
+          "named": true
+        },
+        {
+          "type": "inline_comment",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "qsl_info",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "qso_line",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "callsign",
+          "named": true
+        },
+        {
+          "type": "qso_extra",
+          "named": true
+        },
+        {
+          "type": "rst_rcvd",
+          "named": true
+        },
+        {
+          "type": "rst_sent",
+          "named": true
+        },
+        {
+          "type": "time",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "rst_rcvd",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "rst_sent",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "source_file",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "band_mode_line",
+          "named": true
+        },
+        {
+          "type": "date_command",
+          "named": true
+        },
+        {
+          "type": "day_command",
+          "named": true
+        },
+        {
+          "type": "header",
+          "named": true
+        },
+        {
+          "type": "qso_line",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "#",
+    "named": false
+  },
+  {
+    "type": "<",
+    "named": false
+  },
+  {
+    "type": ">",
+    "named": false
+  },
+  {
+    "type": "@",
+    "named": false
+  },
+  {
+    "type": "AM",
+    "named": false
+  },
+  {
+    "type": "CW",
+    "named": false
+  },
+  {
+    "type": "DATA",
+    "named": false
+  },
+  {
+    "type": "DIGI",
+    "named": false
+  },
+  {
+    "type": "FM",
+    "named": false
+  },
+  {
+    "type": "FT4",
+    "named": false
+  },
+  {
+    "type": "FT8",
+    "named": false
+  },
+  {
+    "type": "JS8",
+    "named": false
+  },
+  {
+    "type": "MFSK",
+    "named": false
+  },
+  {
+    "type": "PSK",
+    "named": false
+  },
+  {
+    "type": "RTTY",
+    "named": false
+  },
+  {
+    "type": "SSB",
+    "named": false
+  },
+  {
+    "type": "VARAC",
+    "named": false
+  },
+  {
+    "type": "[",
+    "named": false
+  },
+  {
+    "type": "]",
+    "named": false
+  },
+  {
+    "type": "am",
+    "named": false
+  },
+  {
+    "type": "callsign",
+    "named": true
+  },
+  {
+    "type": "comment",
+    "named": true
+  },
+  {
+    "type": "cw",
+    "named": false
+  },
+  {
+    "type": "data",
+    "named": false
+  },
+  {
+    "type": "date_value",
+    "named": true
+  },
+  {
+    "type": "day_value",
+    "named": true
+  },
+  {
+    "type": "digi",
+    "named": false
+  },
+  {
+    "type": "fm",
+    "named": false
+  },
+  {
+    "type": "ft4",
+    "named": false
+  },
+  {
+    "type": "ft8",
+    "named": false
+  },
+  {
+    "type": "header_value",
+    "named": true
+  },
+  {
+    "type": "js8",
+    "named": false
+  },
+  {
+    "type": "keyword",
+    "named": true
+  },
+  {
+    "type": "mfsk",
+    "named": false
+  },
+  {
+    "type": "psk",
+    "named": false
+  },
+  {
+    "type": "rtty",
+    "named": false
+  },
+  {
+    "type": "ssb",
+    "named": false
+  },
+  {
+    "type": "time",
+    "named": true
+  },
+  {
+    "type": "varac",
+    "named": false
+  }
+]

@@ -1,0 +1,17 @@
+{
+  "name": "tree-sitter-fle",
+  "version": "0.1.0",
+  "description": "FLE grammar for tree-sitter",
+  "main": "bindings/node",
+  "devDependencies": {
+    "tree-sitter-cli": "^0.21.0"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.fle",
+      "file-types": [
+        "fle"
+      ]
+    }
+  ]
+}
