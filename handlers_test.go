@@ -109,6 +109,16 @@ func TestHandler_Hover(t *testing.T) {
 	if !strings.Contains(hover.Contents.Value, wantCount) {
 		t.Errorf("Hover content %q does not contain %q", hover.Contents.Value, wantCount)
 	}
+
+	wantQRZ := "[QRZ](https://www.qrz.com/db/EA1ABC)"
+	if !strings.Contains(hover.Contents.Value, wantQRZ) {
+		t.Errorf("Hover content %q does not contain %q", hover.Contents.Value, wantQRZ)
+	}
+
+	wantHamQTH := "[HamQTH](https://www.hamqth.com/EA1ABC)"
+	if !strings.Contains(hover.Contents.Value, wantHamQTH) {
+		t.Errorf("Hover content %q does not contain %q", hover.Contents.Value, wantHamQTH)
+	}
 }
 
 func TestHandler_Completion(t *testing.T) {

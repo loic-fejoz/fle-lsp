@@ -323,15 +323,17 @@ func (h *Handler) Hover(_ context.Context, params *protocol.HoverParams) (*proto
 	}
 
 	country := LookupCountry(foundQSO.Callsign)
+	qrzLink := fmt.Sprintf("[QRZ](https://www.qrz.com/db/%s)", foundQSO.Callsign)
+	hamqthLink := fmt.Sprintf("[HamQTH](https://www.hamqth.com/%s)", foundQSO.Callsign)
 
-	content := fmt.Sprintf("**QSO Context**\n\n* **Date (UTC):** %s\n* **Time (UTC):** %s\n* **Local Time:** %s (%s)\n* **Band:** %s\n* **Mode:** %s\n* **Call:** %s\n* **Country:** %s\n* **Times Contacted:** %d",
+	content := fmt.Sprintf("**QSO Context**\n\n* **Date (UTC):** %s\n* **Time (UTC):** %s\n* **Local Time:** %s (%s)\n* **Band:** %s\n* **Mode:** %s\n* **Call:** %s (%s | %s)\n* **Country:** %s\n* **Times Contacted:** %d",
 		foundQSO.Timestamp.Format("2006-01-02"),
 		foundQSO.Timestamp.Format("15:04"),
 		localTime.Format("15:04"),
 		zone,
 		foundQSO.Band,
 		foundQSO.Mode,
-		foundQSO.Callsign,
+		foundQSO.Callsign, qrzLink, hamqthLink,
 		country,
 		contactCount,
 	)
