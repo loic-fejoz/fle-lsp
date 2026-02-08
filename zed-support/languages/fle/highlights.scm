@@ -10,8 +10,8 @@
 (rst_sent) @number
 (rst_rcvd) @number
 
-(grid) @property
-(name) @property
+(grid) @constant
+(name) @variable.parameter
 (header_value) @string
 (inline_comment) @comment
 (qsl_info) @string

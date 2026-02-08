@@ -55,7 +55,7 @@
     },
     "comment": {
       "type": "PATTERN",
-      "value": "#.*"
+      "value": "#(\\s.*|$)"
     },
     "header": {
       "type": "SEQ",
@@ -387,11 +387,11 @@
     },
     "rst_sent": {
       "type": "PATTERN",
-      "value": "\\d{2,3}"
+      "value": "\\d+"
     },
     "rst_rcvd": {
       "type": "PATTERN",
-      "value": "\\d{2,3}"
+      "value": "\\d+"
     },
     "qso_extra": {
       "type": "CHOICE",
@@ -432,7 +432,7 @@
         },
         {
           "type": "PATTERN",
-          "value": "[a-zA-Z0-9]{4,6}"
+          "value": "[a-zA-Z0-9]{2,8}"
         }
       ]
     },

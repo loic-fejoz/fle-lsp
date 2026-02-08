@@ -20,7 +20,8 @@ module.exports = grammar({
             prec(1, $.qso_line)
         )),
 
-        comment: $ => /#.*/,
+        // A top-level comment should have a space or be the whole line if it's not a grid
+        comment: $ => /#(\s.*|$)/,
 
         header: $ => seq(
             alias(choice(
@@ -74,8 +75,8 @@ module.exports = grammar({
 
         time: $ => /\d{2,4}/,
         callsign: $ => /[a-zA-Z0-9/]+/,
-        rst_sent: $ => /\d{2,3}/, // Signals are usually 2-3 digits
-        rst_rcvd: $ => /\d{2,3}/,
+        rst_sent: $ => /\d+/,
+        rst_rcvd: $ => /\d+/,
 
         qso_extra: $ => choice(
             $.grid,
@@ -85,7 +86,7 @@ module.exports = grammar({
             alias($.inline_hash_comment, $.comment)
         ),
 
-        grid: $ => seq('#', /[a-zA-Z0-9]{4,6}/), // More specific for grids
+        grid: $ => seq('#', /[a-zA-Z0-9]{2,8}/),
         name: $ => seq('@', /[^\s\n\r]+/),
         inline_comment: $ => seq('[', /[^\]]+/, ']'),
         qsl_info: $ => seq('<', /[^>]+/, '>'),
