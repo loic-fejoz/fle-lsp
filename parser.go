@@ -156,6 +156,10 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 				Range: Range{Start: Pos{int32(lineNumber - 1), int32(startOfLine + loc[2])}, End: Pos{int32(lineNumber - 1), int32(startOfLine + loc[3])}},
 				Type:  TokenKeyword,
 			})
+			logbook.Tokens = append(logbook.Tokens, Token{
+				Range: Range{Start: Pos{int32(lineNumber - 1), int32(startOfLine + loc[4])}, End: Pos{int32(lineNumber - 1), int32(startOfLine + loc[5])}},
+				Type:  TokenExtra,
+			})
 			continue
 		}
 

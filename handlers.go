@@ -308,7 +308,75 @@ func (h *Handler) Hover(_ context.Context, params *protocol.HoverParams) (*proto
 	}
 
 	if foundQSO == nil {
-		return nil, nil
+		// If no QSO on this line, check if we are over a header token
+		var foundToken *Token
+		for _, t := range doc.Logbook.Tokens {
+			if t.Range.Start.Line == int32(params.Position.Line) &&
+				int32(params.Position.Character) >= t.Range.Start.Character &&
+				int32(params.Position.Character) <= t.Range.End.Character {
+				foundToken = &t
+				break
+			}
+		}
+
+		if foundToken == nil {
+			return nil, nil
+		}
+
+		// Check if it's a reference header
+		content := ""
+		lines := strings.Split(doc.Text, "\n")
+		lineText := lines[params.Position.Line]
+
+		// Find the keyword for this line if we are on a TokenExtra (value) or TokenKeyword
+		var keyword, value string
+		if foundToken.Type == TokenKeyword {
+			keyword = strings.ToLower(lineText[foundToken.Range.Start.Character:foundToken.Range.End.Character])
+		} else if foundToken.Type == TokenExtra {
+			// Find the keyword on the same line
+			for _, t := range doc.Logbook.Tokens {
+				if t.Range.Start.Line == int32(params.Position.Line) && t.Type == TokenKeyword {
+					keyword = strings.ToLower(lineText[t.Range.Start.Character:t.Range.End.Character])
+					break
+				}
+			}
+			value = lineText[foundToken.Range.Start.Character:foundToken.Range.End.Character]
+		}
+
+		switch keyword {
+		case "mysota":
+			if value == "" {
+				value = doc.Logbook.Header.MySOTA
+			}
+			if value != "" {
+				content = fmt.Sprintf("**SOTA Reference**\n\n[Summit %s on SOTLAS](https://sotl.as/summits/%s)", value, value)
+			}
+		case "mypota":
+			if value == "" {
+				value = doc.Logbook.Header.MyPOTA
+			}
+			if value != "" {
+				content = fmt.Sprintf("**POTA Reference**\n\n[Park %s on POTA.app](https://pota.app/#/park/%s)", value, value)
+			}
+		case "mywwff":
+			if value == "" {
+				value = doc.Logbook.Header.MyWWFF
+			}
+			if value != "" {
+				content = fmt.Sprintf("**WWFF Reference**\n\n[Park %s on WWFF.co](https://wwff.co/directory/?showRef=%s)", value, value)
+			}
+		}
+
+		if content == "" {
+			return nil, nil
+		}
+
+		return &protocol.Hover{
+			Contents: protocol.MarkupContent{
+				Kind:  protocol.Markdown,
+				Value: content,
+			},
+		}, nil
 	}
 
 	localTime := foundQSO.Timestamp.Local()

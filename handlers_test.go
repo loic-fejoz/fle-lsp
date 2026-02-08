@@ -673,3 +673,35 @@ func TestHandler_Completion_SmartFiltering(t *testing.T) {
 		t.Error("Expected variation 'F4JXQ' when completing after 'mycall '")
 	}
 }
+
+func TestHandler_Hover_References(t *testing.T) {
+	content := "mysota W4G/CE-003\nmypota US-1611\nmywwff ONFF-0001\n"
+	h, _ := setupTestHandler(t, content)
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	// 1. Hover over 'mysota' keyword
+	params := &protocol.HoverParams{
+		TextDocumentPositionParams: protocol.TextDocumentPositionParams{
+			TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+			Position:     protocol.Position{Line: 0, Character: 2},
+		},
+	}
+	hover, _ := h.Hover(context.Background(), params)
+	if hover == nil || !strings.Contains(hover.Contents.Value, "sotl.as/summits/W4G/CE-003") {
+		t.Errorf("Expected SOTA link in hover, got %v", hover)
+	}
+
+	// 2. Hover over 'mypota' value
+	params.Position = protocol.Position{Line: 1, Character: 8}
+	hover, _ = h.Hover(context.Background(), params)
+	if hover == nil || !strings.Contains(hover.Contents.Value, "pota.app/#/park/US-1611") {
+		t.Errorf("Expected POTA link in hover, got %v", hover)
+	}
+
+	// 3. Hover over 'mywwff' value
+	params.Position = protocol.Position{Line: 2, Character: 8}
+	hover, _ = h.Hover(context.Background(), params)
+	if hover == nil || !strings.Contains(hover.Contents.Value, "wwff.co/directory/?showRef=ONFF-0001") {
+		t.Errorf("Expected WWFF link in hover, got %v", hover)
+	}
+}
