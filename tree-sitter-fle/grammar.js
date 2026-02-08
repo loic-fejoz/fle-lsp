@@ -20,8 +20,8 @@ module.exports = grammar({
             prec(1, $.qso_line)
         )),
 
-        // A top-level comment should have a space or be the whole line if it's not a grid
-        comment: $ => /#(\s.*|$)/,
+        // Simple comment without any lookaheads/assertions
+        comment: $ => /#.*/,
 
         header: $ => seq(
             alias(choice(

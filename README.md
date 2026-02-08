@@ -43,53 +43,75 @@ FLE LSP transforms your text editor into a powerful radio logging workstation:
 -   **Auto-Formatting**: Automatically normalizes Maidenhead grids (e.g., `jn38qr` → `JN38qr`), callsigns, and modes.
 -   **Document Hierarchy**: Navigate complex logs via a structured outline (Year > Month > Day > QSO).
 -   **Smart Folding**: Collapse entire years or months to focus on your current session.
--   **Semantic Highlighting**: Rich, context-aware coloring for all FLE elements.
+-  - **Inlay Hints**: Instant distance and bearing calculations based on your `mygrid`.
+- **Semantic Highlighting**: Rich, context-aware coloring for all FLE elements.
 
 > [!TIP]
 > Use the included **FLE Original** theme in VS Code for the best semantic highlighting experience.
 
 ---
 
-## 🚀 Development Setup Guides
+## 🚀 Editor Setup Guides
 
-### VS Code
-1.  Navigate to `vs-code-support/` and run `npm install`.
-2.  Open the folder in VS Code and press `F5` to launch.
-3.  Set your color theme to **FLE Original** (`Ctrl+K Ctrl+T`).
+### Zed (Recommended)
+The Zed extension supports both LSP features and Tree-sitter highlighting.
+1. Download the `zed-support` folder.
+2. Open Zed and drag-and-drop the `zed-support` folder into the editor to install it as a **Dev Extension**.
+3. In your `settings.json`, configure the LSP path:
+```json
+{
+  "lsp": {
+    "fle": {
+      "binary": { "path": "/path/to/fle-lsp" }
+    }
+  },
+  "languages": {
+    "fle": {
+      "semantic_tokens": "combined",
+      "inlay_hints": { "show_background": true, "enabled": true }
+    }
+  }
+}
+```
+
+### Helix (`hx`)
+1. Add to your `~/.config/helix/languages.toml`:
+```toml
+[[language]]
+name = "fle"
+scope = "source.fle"
+injection-regex = "fle"
+file-types = ["fle"]
+comment-token = "#"
+language-servers = [ "fle-lsp" ]
+
+[language-server.fle-lsp]
+command = "fle-lsp"
+```
+2. Copy `zed-support/languages/fle/highlights.scm` to `~/.config/helix/runtime/queries/fle/highlights.scm` for Tree-sitter support.
 
 ### Neovim (Built-in LSP)
-Add this snippet to your `init.lua`:
-
+Add this to your `init.lua`:
 ```lua
--- 1. Register .fle filetype
+-- Register .fle filetype
 vim.filetype.add({ extension = { fle = "fle" } })
 
--- 2. Attach LSP
+-- Attach LSP
 vim.api.nvim_create_autocmd("FileType", {
   pattern = "fle",
   callback = function()
     vim.lsp.start({
       name = "fle-lsp",
-      cmd = { "fle-lsp" }, -- Ensure fle-lsp is in your PATH
+      cmd = { "fle-lsp" },
       root_dir = vim.fn.getcwd(),
     })
   end,
 })
-
--- 3. Map LSP semantic tokens to colors
-vim.api.nvim_set_hl(0, "@lsp.type.keyword.fle", { link = "Keyword" })
-vim.api.nvim_set_hl(0, "@lsp.type.variable.fle", { bold = true })
-vim.api.nvim_set_hl(0, "@lsp.type.string.fle", { link = "String" })
-vim.api.nvim_set_hl(0, "@lsp.type.number.fle", { link = "Number", bold = true })
-vim.api.nvim_set_hl(0, "@lsp.type.type.fle", { link = "Keyword" })
-vim.api.nvim_set_hl(0, "@lsp.type.macro.fle", { link = "Keyword" })
-vim.api.nvim_set_hl(0, "@lsp.type.date.fle", { link = "Function" })
-vim.api.nvim_set_hl(0, "@lsp.type.name.fle", { foreground = "#8b4513" })
-vim.api.nvim_set_hl(0, "@lsp.type.extra.fle", { foreground = "#8b4513" })
 ```
 
-> [!IMPORTANT]
-> Ensure the `fle-lsp` binary is in your system PATH or provide the absolute path in the `cmd` table.
+### VS Code
+1. Navigate to `vs-code-support/` and run `npm install`.
+2. Open the folder in VS Code and press `F5` to launch.
 
 ---
 

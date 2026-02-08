@@ -1,6 +1,6 @@
 id = "fle"
 name = "Fast Log Entry"
-version = "0.0.15"
+version = "0.0.17"
 schema_version = 1
 authors = ["F4JXQ <loic@fejoz.net>"]
 description = "LSP and Tree-sitter for Fast Log Entry"

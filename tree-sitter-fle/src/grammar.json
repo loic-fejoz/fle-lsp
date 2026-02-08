@@ -55,7 +55,7 @@
     },
     "comment": {
       "type": "PATTERN",
-      "value": "#(\\s.*|$)"
+      "value": "#.*"
     },
     "header": {
       "type": "SEQ",
