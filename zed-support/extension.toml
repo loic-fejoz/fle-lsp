@@ -1,0 +1,16 @@
+id = "fle"
+name = "Fast Log Entry"
+version = "0.0.15"
+schema_version = 1
+authors = ["F4JXQ <loic@fejoz.net>"]
+description = "LSP and Tree-sitter for Fast Log Entry"
+repository = "https://github.com/loic-fejoz/fle-lsp"
+
+[language_servers.fle]
+name = "fle-lsp"
+languages = ["fle"]
+
+[grammars.fle]
+repository = "https://github.com/loic-fejoz/fle-lsp"
+rev = "main"
+path = "tree-sitter-fle"

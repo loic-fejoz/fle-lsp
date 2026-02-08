@@ -13,14 +13,14 @@ module.exports = grammar({
     rules: {
         source_file: $ => repeat(choice(
             $.comment,
-            $.header,
-            $.date_command,
-            $.day_command,
-            $.band_mode_line,
-            $.qso_line
+            prec(2, $.header),
+            prec(2, $.date_command),
+            prec(2, $.day_command),
+            prec(2, $.band_mode_line),
+            prec(1, $.qso_line)
         )),
 
-        comment: $ => /#\s.*/,
+        comment: $ => /#.*/,
 
         header: $ => seq(
             alias(choice(
@@ -33,7 +33,7 @@ module.exports = grammar({
                 /[mM][yY][sS][oO][tT][aA]/,
                 /[mM][yY][pP][oO][tT][aA]/
             ), $.keyword),
-            $.header_value
+            optional($.header_value)
         ),
         header_value: $ => /[^\n\r]+/,
 
@@ -49,10 +49,10 @@ module.exports = grammar({
         ),
         day_value: $ => /\++/,
 
-        band_mode_line: $ => prec(2, seq(
+        band_mode_line: $ => seq(
             choice($.band, $.mode),
             repeat(choice($.band, $.mode))
-        )),
+        ),
 
         band: $ => choice(
             /\d+(\.\d+)?([mM]|[cC][mM])/,
@@ -74,20 +74,22 @@ module.exports = grammar({
 
         time: $ => /\d{2,4}/,
         callsign: $ => /[a-zA-Z0-9/]+/,
-        rst_sent: $ => /\d{1,3}/,
-        rst_rcvd: $ => /\d{1,3}/,
+        rst_sent: $ => /\d{2,3}/, // Signals are usually 2-3 digits
+        rst_rcvd: $ => /\d{2,3}/,
 
         qso_extra: $ => choice(
             $.grid,
             $.name,
             $.inline_comment,
-            $.qsl_info
+            $.qsl_info,
+            alias($.inline_hash_comment, $.comment)
         ),
 
-        grid: $ => seq('#', /[a-zA-Z0-9]+/),
+        grid: $ => seq('#', /[a-zA-Z0-9]{4,6}/), // More specific for grids
         name: $ => seq('@', /[^\s\n\r]+/),
         inline_comment: $ => seq('[', /[^\]]+/, ']'),
-        qsl_info: $ => seq('<', /[^>]+/, '>')
+        qsl_info: $ => seq('<', /[^>]+/, '>'),
+        inline_hash_comment: $ => seq('#', /[\t ]/, /.*/)
     }
 }
 );

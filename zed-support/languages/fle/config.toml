@@ -1,0 +1,5 @@
+name = "fle"
+grammar = "fle"
+path_suffixes = ["fle"]
+line_comments = ["# "]
+repository = "file:///home/loic/projets/fle-lsp/tree-sitter-fle"
