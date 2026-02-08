@@ -8,6 +8,10 @@
         "members": [
           {
             "type": "SYMBOL",
+            "name": "comment"
+          },
+          {
+            "type": "SYMBOL",
             "name": "header"
           },
           {
@@ -31,7 +35,7 @@
     },
     "comment": {
       "type": "PATTERN",
-      "value": "#.*"
+      "value": "#\\s.*"
     },
     "header": {
       "type": "SEQ",
@@ -133,23 +137,41 @@
       "value": "\\++"
     },
     "band_mode_line": {
-      "type": "PREC_LEFT",
-      "value": 1,
+      "type": "PREC",
+      "value": 2,
       "content": {
-        "type": "REPEAT1",
-        "content": {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "band"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "mode"
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "band"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "mode"
+              }
+            ]
+          },
+          {
+            "type": "REPEAT",
+            "content": {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "band"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "mode"
+                }
+              ]
             }
-          ]
-        }
+          }
+        ]
       }
     },
     "band": {
@@ -433,10 +455,6 @@
     {
       "type": "PATTERN",
       "value": "\\s"
-    },
-    {
-      "type": "SYMBOL",
-      "name": "comment"
     }
   ],
   "conflicts": [

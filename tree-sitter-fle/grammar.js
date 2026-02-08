@@ -2,8 +2,7 @@ module.exports = grammar({
     name: 'fle',
 
     extras: $ => [
-        /\s/,
-        $.comment
+        /\s/
     ],
 
     conflicts: $ => [
@@ -13,6 +12,7 @@ module.exports = grammar({
 
     rules: {
         source_file: $ => repeat(choice(
+            $.comment,
             $.header,
             $.date_command,
             $.day_command,
@@ -20,7 +20,7 @@ module.exports = grammar({
             $.qso_line
         )),
 
-        comment: $ => /#.*/,
+        comment: $ => /#\s.*/,
 
         header: $ => seq(
             alias(choice(
@@ -49,10 +49,10 @@ module.exports = grammar({
         ),
         day_value: $ => /\++/,
 
-        band_mode_line: $ => prec.left(1, repeat1(choice(
-            $.band,
-            $.mode
-        ))),
+        band_mode_line: $ => prec(2, seq(
+            choice($.band, $.mode),
+            repeat(choice($.band, $.mode))
+        )),
 
         band: $ => choice(
             /\d+(\.\d+)?([mM]|[cC][mM])/,

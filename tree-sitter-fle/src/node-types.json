@@ -186,6 +186,10 @@
           "named": true
         },
         {
+          "type": "comment",
+          "named": true
+        },
+        {
           "type": "date_command",
           "named": true
         },
