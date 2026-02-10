@@ -791,3 +791,60 @@ func TestHandler_ExecuteCommand_GeoJSON(t *testing.T) {
 		t.Errorf("GeoJSON file was not created at %s", geoJSONPath)
 	}
 }
+func TestHandler_DidChange(t *testing.T) {
+	content := "mycall F4JXQ\n"
+	h, _ := setupTestHandler(t, content)
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	newContent := "mycall F4JXQ\ndate 2026-02-01\n"
+	err := h.DidChange(context.Background(), &protocol.DidChangeTextDocumentParams{
+		TextDocument: protocol.VersionedTextDocumentIdentifier{
+			TextDocumentIdentifier: protocol.TextDocumentIdentifier{URI: uri},
+			Version:                1,
+		},
+		ContentChanges: []protocol.TextDocumentContentChangeEvent{
+			{Text: newContent},
+		},
+	})
+	if err != nil {
+		t.Fatalf("DidChange failed: %v", err)
+	}
+
+	v, ok := h.documents.Load(uri.Filename())
+	if !ok {
+		t.Fatal("Document not found after DidChange")
+	}
+	doc := v.(*Document)
+	if doc.Text != newContent {
+		t.Errorf("Expected content %q, got %q", newContent, doc.Text)
+	}
+}
+
+func TestHandler_DidSave(t *testing.T) {
+	h, _ := setupTestHandler(t, "mycall F4JXQ\n")
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	err := h.DidSave(context.Background(), &protocol.DidSaveTextDocumentParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+	})
+	if err != nil {
+		t.Errorf("DidSave failed: %v", err)
+	}
+}
+
+func TestHandler_DidClose(t *testing.T) {
+	h, _ := setupTestHandler(t, "mycall F4JXQ\n")
+	uri := protocol.DocumentURI("file:///test.fle")
+
+	err := h.DidClose(context.Background(), &protocol.DidCloseTextDocumentParams{
+		TextDocument: protocol.TextDocumentIdentifier{URI: uri},
+	})
+	if err != nil {
+		t.Fatalf("DidClose failed: %v", err)
+	}
+
+	_, ok := h.documents.Load(uri.Filename())
+	if ok {
+		t.Error("Document still exists after DidClose")
+	}
+}

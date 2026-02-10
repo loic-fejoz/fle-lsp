@@ -16,14 +16,30 @@ func GridToLatLon(grid string) (lat, lon float64, err error) {
 		return 0, 0, fmt.Errorf("grid too short")
 	}
 
+	// Validate Field (A-R)
+	if grid[0] < 'A' || grid[0] > 'R' || grid[1] < 'A' || grid[1] > 'R' {
+		return 0, 0, fmt.Errorf("invalid grid field")
+	}
+
+	// Validate Square (0-9)
+	if grid[2] < '0' || grid[2] > '9' || grid[3] < '0' || grid[3] > '9' {
+		return 0, 0, fmt.Errorf("invalid grid square")
+	}
+
 	lon = float64(grid[0]-'A')*20 - 180
 	lat = float64(grid[1]-'A')*10 - 90
 	lon += float64(grid[2]-'0') * 2
 	lat += float64(grid[3]-'0') * 1
 
 	if len(grid) >= 6 {
-		lon += (float64(strings.ToLower(string(grid[4]))[0]-'a') + 0.5) * (5.0 / 60.0)
-		lat += (float64(strings.ToLower(string(grid[5]))[0]-'a') + 0.5) * (2.5 / 60.0)
+		// Validate Subsquare (A-X)
+		s4 := strings.ToUpper(string(grid[4]))[0]
+		s5 := strings.ToUpper(string(grid[5]))[0]
+		if s4 < 'A' || s4 > 'X' || s5 < 'A' || s5 > 'X' {
+			return 0, 0, fmt.Errorf("invalid grid subsquare")
+		}
+		lon += (float64(s4-'A') + 0.5) * (5.0 / 60.0)
+		lat += (float64(s5-'A') + 0.5) * (2.5 / 60.0)
 	} else {
 		lon += 1.0
 		lat += 0.5
