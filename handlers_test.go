@@ -573,7 +573,7 @@ mygrid JN39aa
 	}
 
 	summaryHint := hints[0]
-	wantSummary := "Total QSOs: 3 | Callsigns: 3 | Activated Grids: 2 | Collected Grids: 1"
+	wantSummary := "Total QSOs: 3 | Callsigns: 3 | Activated Grids: 2 | Collected Grids: 1 | ODX: 275km"
 	if summaryHint.Label != wantSummary {
 		t.Errorf("Expected summary label %q, got %q", wantSummary, summaryHint.Label)
 	}
@@ -728,12 +728,12 @@ func TestHandler_InlayHint_DailyStats(t *testing.T) {
 
 	for _, hint := range hints {
 		if hint.Position.Line == 1 { // date 2026-02-01
-			if strings.Contains(hint.Label, "Daily QSOs: 2") && strings.Contains(hint.Label, "Callsigns: 2") {
+			if strings.Contains(hint.Label, "Daily QSOs: 2") && strings.Contains(hint.Label, "Callsigns: 2") && strings.Contains(hint.Label, "ODX: 0km") {
 				foundDate1 = true
 			}
 		}
 		if hint.Position.Line == 5 { // day + (2026-02-02)
-			if strings.Contains(hint.Label, "Daily QSOs: 2") && strings.Contains(hint.Label, "Callsigns: 2") {
+			if strings.Contains(hint.Label, "Daily QSOs: 2") && strings.Contains(hint.Label, "Callsigns: 2") && strings.Contains(hint.Label, "ODX: 0km") {
 				foundDayPlus = true
 			}
 		}

@@ -745,10 +745,10 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 	}
 	res := make([]InlayHint, 0)
 
-	qsoCount, uniqueCalls, activatedGrids, collectedGrids := h.CalculateStatistics(doc.Logbook)
+	qsoCount, uniqueCalls, activatedGrids, collectedGrids, odx := h.CalculateStatistics(doc.Logbook)
 
-	label := fmt.Sprintf("Total QSOs: %d | Callsigns: %d | Activated Grids: %d | Collected Grids: %d",
-		qsoCount, uniqueCalls, activatedGrids, collectedGrids)
+	label := fmt.Sprintf("Total QSOs: %d | Callsigns: %d | Activated Grids: %d | Collected Grids: %d | ODX: %dkm",
+		qsoCount, uniqueCalls, activatedGrids, collectedGrids, odx)
 
 	res = append(res, InlayHint{
 		Position:     protocol.Position{Line: 0, Character: 0},
@@ -760,6 +760,7 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 		qsoCount int
 		calls    map[string]bool
 		grids    map[string]bool
+		odx      float64
 	}
 	daily := make(map[string]*dailyStats)
 	for _, q := range doc.Logbook.QSOs {
@@ -772,6 +773,16 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 		stats.calls[BaseCallsign(q.Callsign)] = true
 		if q.Grid != "" {
 			stats.grids[formatGrid(q.Grid)] = true
+			if q.MyGrid != "" {
+				lat1, lon1, err1 := GridToLatLon(q.MyGrid)
+				lat2, lon2, err2 := GridToLatLon(q.Grid)
+				if err1 == nil && err2 == nil {
+					dist := CalculateDistance(lat1, lon1, lat2, lon2)
+					if dist > stats.odx {
+						stats.odx = dist
+					}
+				}
+			}
 		}
 	}
 
@@ -802,7 +813,7 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 			if !currentDate.IsZero() {
 				dKey := currentDate.Format("2006-01-02")
 				if s, ok := daily[dKey]; ok {
-					dailyLabel := fmt.Sprintf("Daily QSOs: %d | Callsigns: %d | Grids: %d", s.qsoCount, len(s.calls), len(s.grids))
+					dailyLabel := fmt.Sprintf("Daily QSOs: %d | Callsigns: %d | Grids: %d | ODX: %dkm", s.qsoCount, len(s.calls), len(s.grids), int(math.Round(s.odx)))
 					res = append(res, InlayHint{
 						Position: protocol.Position{
 							Line:      uint32(t.Range.End.Line),
@@ -884,23 +895,36 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 }
 
 // CalculateStatistics computes various metrics for the given logbook.
-func (h *Handler) CalculateStatistics(logbook *Logbook) (qsoCount, uniqueCalls, activatedGrids, collectedGrids int) {
+func (h *Handler) CalculateStatistics(logbook *Logbook) (qsoCount, uniqueCalls, activatedGrids, collectedGrids, odx int) {
 	qsoCount = len(logbook.QSOs)
 
 	calls := make(map[string]bool)
 	colGrids := make(map[string]bool)
+	var maxDist float64
 
 	for _, qso := range logbook.QSOs {
 		baseCall := BaseCallsign(qso.Callsign)
 		calls[baseCall] = true
 		if qso.Grid != "" {
 			colGrids[formatGrid(qso.Grid)] = true
+
+			if qso.MyGrid != "" {
+				lat1, lon1, err1 := GridToLatLon(qso.MyGrid)
+				lat2, lon2, err2 := GridToLatLon(qso.Grid)
+				if err1 == nil && err2 == nil {
+					dist := CalculateDistance(lat1, lon1, lat2, lon2)
+					if dist > maxDist {
+						maxDist = dist
+					}
+				}
+			}
 		}
 	}
 
 	uniqueCalls = len(calls)
 	activatedGrids = len(logbook.ActivatedGrids)
 	collectedGrids = len(colGrids)
+	odx = int(math.Round(maxDist))
 
 	return
 }
