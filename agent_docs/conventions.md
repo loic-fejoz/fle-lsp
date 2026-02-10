@@ -36,5 +36,15 @@
 - **Nil Safety**: Add defensive checks for optional pointers before dereferencing, especially in deep struct hierarchies (e.g., LSP `DocumentSymbol` trees).
 - **Error Checking**: explicitly handle errors from conversion functions like `strconv.Atoi` or `strconv.ParseFloat`. Do not blindly ignore them with `_`.
 
+## Coding Convention Refinements
+
+### Naming Patterns
+- **Acronyms**: Prefer all-caps for acronyms in variable names (e.g., `geoJSONPath` instead of `geoJsonPath`). This aligns with Go's style guide and is enforced by many linters.
+
+### Linting & Static Analysis
+- **Unchecked Errors**: Always check the return value of client methods like `h.Client.ShowMessage`. Linters (e.g., `errcheck`) will flag unchecked errors even on notifications.
+- **Unused Parameters**: In callback functions (e.g., `sync.Map.Range`), use `_` for unused parameters to satisfy `revive`.
+
 ## Examples
-- See [handlers.go:L27-48](file:///home/loic/projets/fle-lsp/handlers.go#L27-48) for the implementation of the `Initialize` method using `go.lsp.dev/protocol` types.
+- See [handlers.go:L27-55](file:///home/loic/projets/fle-lsp/handlers.go#L27-55) for initialization and capability detection.
+- See [handlers.go:L160-178](file:///home/loic/projets/fle-lsp/handlers.go#L160-178) for the `showDocument` fallback pattern.

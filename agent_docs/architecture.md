@@ -47,3 +47,16 @@ Uses a hierarchical strategy to group log entries by Year, then Month, then Day.
 
 ### Formatting (Full & Range)
 Implemented via a shared `normalizeLine` path. `RangeFormatting` applies this logic selectively to specific line indices, providing high-performance formatting without re-scanning the whole file.
+
+## Design Patterns & Lessons Learned
+
+### Command & UI Orchestration
+When implementing LSP commands (e.g., `fle.convertGeoJson`):
+- **Conflict Prevention**: Avoid registering the same command ID in both the editor extension (client-side) and the server's `ExecuteCommandProvider`. This causes "command already exists" errors in VS Code.
+- **Delegation Pattern**: Use a UI-specific command ID (e.g., `fle.convertGeoJsonUI`) in the editor's command palette that captures context (like the active document URI) and delegates execution to the server's LSP command.
+
+### Dynamic File Handling (`showDocument`)
+To open a file side-by-side from the server:
+- **Capability Guard**: Always check `params.Capabilities.Window.ShowDocument.Support` during `Initialize`.
+- **LSP-Native Flow**: Prefer `window/showDocument` for standard-compliant editors (VS Code, etc.).
+- **Message Fallback**: For editors that don't support `showDocument` (e.g., Zed), fall back to `window/showMessage` to inform the user that the file was successfully created on disk.

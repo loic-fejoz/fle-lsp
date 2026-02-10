@@ -50,7 +50,22 @@
         "uiTheme": "vs",
         "path": "./themes/fle-theme-color-theme.json"
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "fle.convertGeoJsonUI",
+        "title": "FLE: Convert to GeoJSON",
+        "category": "FLE"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "fle.convertGeoJsonUI",
+          "when": "editorLangId == fastlogentry"
+        }
+      ]
+    }
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"

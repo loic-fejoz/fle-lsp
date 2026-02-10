@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -24,6 +26,8 @@ type Handler struct {
 	documents sync.Map // Map[string]*Document
 
 	locationSources []LocationSource
+
+	clientSupportsShowDocument bool
 }
 
 // Document represents a managed FLE document.
@@ -45,6 +49,11 @@ func NewHandler(ctx context.Context, client protocol.Client, conn jsonrpc2.Conn,
 func (h *Handler) Initialize(_ context.Context, params *protocol.InitializeParams) (*protocol.InitializeResult, error) {
 	h.Logger.Info("Initializing flelsp server", zap.Any("params", params))
 	h.locationSources = DetectLocationSources()
+
+	if params.Capabilities.Window != nil && params.Capabilities.Window.ShowDocument != nil {
+		h.clientSupportsShowDocument = params.Capabilities.Window.ShowDocument.Support
+	}
+
 	return &protocol.InitializeResult{
 		Capabilities: protocol.ServerCapabilities{
 			DefinitionProvider:     false,
@@ -58,6 +67,9 @@ func (h *Handler) Initialize(_ context.Context, params *protocol.InitializeParam
 			FoldingRangeProvider:            true,
 			CodeActionProvider:              true,
 			ColorProvider:                   false,
+			ExecuteCommandProvider: &protocol.ExecuteCommandOptions{
+				Commands: []string{"fle.convertGeoJson"},
+			},
 			SemanticTokensProvider: map[string]interface{}{
 				"legend": protocol.SemanticTokensLegend{
 					TokenTypes: []protocol.SemanticTokenTypes{
@@ -88,6 +100,88 @@ func (h *Handler) Initialize(_ context.Context, params *protocol.InitializeParam
 			Version: fmt.Sprintf("%s (built at %s)", "0.0.0", BuiltAt),
 		},
 	}, nil
+}
+
+// ExecuteCommand handles the workspace/executeCommand request.
+func (h *Handler) ExecuteCommand(ctx context.Context, params *protocol.ExecuteCommandParams) (interface{}, error) {
+	h.Logger.Info("ExecuteCommand", zap.String("command", params.Command))
+
+	switch params.Command {
+	case "fle.convertGeoJson":
+		var uriStr string
+		var filename string
+		if len(params.Arguments) > 0 {
+			if s, ok := params.Arguments[0].(string); ok {
+				uriStr = s
+				filename = protocol.DocumentURI(uriStr).Filename()
+			}
+		}
+
+		if filename == "" {
+			// Fallback: try to find the first open document
+			h.documents.Range(func(key, _ interface{}) bool {
+				filename = key.(string)
+				uriStr = string(protocol.DocumentURI(filename)) // Simplified URI guess
+				if !strings.HasPrefix(uriStr, "file://") {
+					uriStr = "file://" + filename
+				}
+				return false // Stop after first
+			})
+		}
+
+		if filename == "" {
+			return nil, fmt.Errorf("no open document found and no URI argument provided")
+		}
+
+		v, ok := h.documents.Load(filename)
+		if !ok {
+			return nil, fmt.Errorf("document not found: %s", filename)
+		}
+		doc := v.(*Document)
+		if doc.Logbook == nil {
+			return nil, fmt.Errorf("logbook not parsed")
+		}
+
+		gj, err := ToGeoJSON(doc.Logbook)
+		if err != nil {
+			return nil, err
+		}
+
+		// Calculate target filename
+		targetExt := ".geojson"
+		ext := filepath.Ext(filename)
+		targetFile := filename[:len(filename)-len(ext)] + targetExt
+		targetURI := uriStr[:len(uriStr)-len(ext)] + targetExt
+
+		// Write to disk
+		if err := os.WriteFile(targetFile, []byte(gj), 0644); err != nil {
+			return nil, fmt.Errorf("failed to write GeoJSON to %s: %v", targetFile, err)
+		}
+
+		// Request client to show the document
+		if h.clientSupportsShowDocument && h.Conn != nil {
+			showParams := &protocol.ShowDocumentParams{
+				URI:       protocol.URI(targetURI),
+				TakeFocus: true,
+			}
+			var showRes protocol.ShowDocumentResult
+			if _, err := h.Conn.Call(ctx, "window/showDocument", showParams, &showRes); err != nil {
+				h.Logger.Warn("window/showDocument failed", zap.Error(err))
+			}
+		} else {
+			// Fallback for clients like Zed that don't support showDocument
+			if err := h.Client.ShowMessage(ctx, &protocol.ShowMessageParams{
+				Type:    protocol.MessageTypeInfo,
+				Message: fmt.Sprintf("GeoJSON exported to %s", targetFile),
+			}); err != nil {
+				h.Logger.Error("ShowMessage failed", zap.Error(err))
+			}
+		}
+
+		return gj, nil
+	}
+
+	return nil, fmt.Errorf("unknown command: %s", params.Command)
 }
 
 // DidOpen handles the textDocument/didOpen notification.
@@ -1232,6 +1326,17 @@ func (h *Handler) CodeAction(_ context.Context, params *protocol.CodeActionParam
 	doc := v.(*Document)
 
 	actions := make([]protocol.CodeAction, 0)
+
+	// Add a general action to convert to GeoJSON
+	actions = append(actions, protocol.CodeAction{
+		Title: "Export Logbook to GeoJSON",
+		Kind:  protocol.CodeActionKind("source"),
+		Command: &protocol.Command{
+			Title:     "Convert to GeoJSON",
+			Command:   "fle.convertGeoJson",
+			Arguments: []interface{}{string(params.TextDocument.URI)},
+		},
+	})
 
 	for _, d := range params.Context.Diagnostics {
 		code, ok := d.Code.(string)

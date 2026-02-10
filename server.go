@@ -38,6 +38,7 @@ func StartServer(logger *zap.Logger) {
 
 	serverHandler := protocol.ServerHandler(handler, jsonrpc2.MethodNotFoundHandler)
 	conn.Go(ctx, func(ctx context.Context, reply jsonrpc2.Replier, req jsonrpc2.Request) (err error) {
+		logger.Debug("Handling request", zap.String("method", req.Method()))
 		defer func() {
 			if r := recover(); r != nil {
 				logger.Error("panic in request handler", zap.Any("panic", r), zap.String("method", req.Method()))
@@ -77,6 +78,14 @@ func StartServer(logger *zap.Logger) {
 				return reply(ctx, nil, jsonrpc2.NewError(jsonrpc2.InvalidParams, err.Error()))
 			}
 			resp, err := handler.InlayHint(ctx, &params)
+			return reply(ctx, resp, err)
+
+		case "workspace/executeCommand":
+			var params protocol.ExecuteCommandParams
+			if err := json.Unmarshal(req.Params(), &params); err != nil {
+				return reply(ctx, nil, jsonrpc2.NewError(jsonrpc2.InvalidParams, err.Error()))
+			}
+			resp, err := handler.ExecuteCommand(ctx, &params)
 			return reply(ctx, resp, err)
 		}
 		return serverHandler(ctx, reply, req)

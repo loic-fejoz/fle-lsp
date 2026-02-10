@@ -61,3 +61,12 @@ vim.api.nvim_create_autocmd("FileType", {
 
 ## 4. VS Code
 The extension is available in the `vs-code-support` directory for local side-loading.
+
+### Naming Conventions
+- **Command IDs**: The extension defines UI commands (e.g., `fle.convertGeoJsonUI`) that delegate to internal LSP commands (`fle.convertGeoJson`). This prevents command registration conflicts with the LSP client.
+
+## Multi-Editor Compatibility Notes
+
+### LSP 3.16+ Features
+- Features like `window/showDocument` are supported in VS Code but may not be available in other editors like Zed or older clients.
+- **Server behavior**: The server detects these capabilities and falls back to `window/showMessage` if `showDocument` is unsupported.

@@ -17,6 +17,7 @@ An experimental VS Code extension providing rich language support for **Fast Log
 - **Document Outline**: Navigate your logbook by Year, Month, and Day.
 - **Folding**: Collapse sections of your log to keep it organized.
 - **Formatting**: Normalize your log entries automatically.
+- **Export to GeoJSON**: Command Palette (`FLE: Convert to GeoJSON`) or Code Action to visualize your QSOs. Auto-opens the resulting file.
 
 ## Requirements
 

@@ -42,6 +42,14 @@ function activate(context) {
         clientOptions
     );
 
+    context.subscriptions.push(vscode.commands.registerCommand('fle.convertGeoJsonUI', async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return;
+        }
+        await vscode.commands.executeCommand('fle.convertGeoJson', editor.document.uri.toString());
+    }));
+
     client.start();
 }
 

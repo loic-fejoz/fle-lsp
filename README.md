@@ -38,13 +38,16 @@ FLE LSP transforms your text editor into a powerful radio logging workstation:
     -   **Contact Statistics**: Number of times you've worked this callsign.
     -   **DXCC Info**: Country and entity details (supports all countries + European microstates & French territories).
 -   **Quick Fixes**: Automatically correct date formats (e.g., `DD/MM/YYYY` → `YYYY-MM-DD`).
+-   **GeoJSON Export**: Instant export of your logs to a `.geojson` file for visualization in tools like [geojson.io](https://geojson.io) or QGIS. Uses standard `window/showDocument` to auto-open the result.
 
 ### 🛠️ Professional Layout & Formatting
 -   **Auto-Formatting**: Automatically normalizes Maidenhead grids (e.g., `jn38qr` → `JN38qr`), callsigns, and modes.
 -   **Document Hierarchy**: Navigate complex logs via a structured outline (Year > Month > Day > QSO).
 -   **Smart Folding**: Collapse entire years or months to focus on your current session.
--  - **Inlay Hints**: Instant distance and bearing calculations based on your `mygrid`.
-- **Semantic Highlighting**: Rich, context-aware coloring for all FLE elements.
+-   **Inlay Hints**: 
+    -   **Distance/Bearing**: Instant calculations from your `mygrid` to the worked callsign.
+    -   **Daily Statistics**: Real-time QSO counts per session directly in the editor.
+-   **Semantic Highlighting**: Rich, context-aware coloring for all FLE elements.
 
 > [!TIP]
 > Use the included **FLE Original** theme in VS Code for the best semantic highlighting experience.

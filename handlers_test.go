@@ -746,3 +746,48 @@ func TestHandler_InlayHint_DailyStats(t *testing.T) {
 		t.Errorf("Did not find expected inlay hint on day + line, hints: %v", hints)
 	}
 }
+
+func TestHandler_ExecuteCommand_GeoJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	flePath := filepath.Join(tmpDir, "test.fle")
+	content := "mycall F4JXQ\ndate 2026-02-01\n40m cw\n1200 EA1ABC #JN18du"
+	if err := os.WriteFile(flePath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	h, _ := setupTestHandler(t, "")
+	uri := "file://" + flePath
+	if err := h.DidOpen(context.Background(), &protocol.DidOpenTextDocumentParams{
+		TextDocument: protocol.TextDocumentItem{
+			URI:  protocol.DocumentURI(uri),
+			Text: content,
+		},
+	}); err != nil {
+		t.Fatalf("DidOpen failed: %v", err)
+	}
+
+	params := &protocol.ExecuteCommandParams{
+		Command:   "fle.convertGeoJson",
+		Arguments: []interface{}{uri},
+	}
+
+	res, err := h.ExecuteCommand(context.Background(), params)
+	if err != nil {
+		t.Fatalf("ExecuteCommand failed: %v", err)
+	}
+
+	gj, ok := res.(string)
+	if !ok {
+		t.Fatalf("Expected string result, got %T", res)
+	}
+
+	if !strings.Contains(gj, "EA1ABC") {
+		t.Errorf("GeoJSON does not contain EA1ABC: %s", gj)
+	}
+
+	// Verify file was created
+	geoJSONPath := filepath.Join(tmpDir, "test.geojson")
+	if _, err := os.Stat(geoJSONPath); os.IsNotExist(err) {
+		t.Errorf("GeoJSON file was not created at %s", geoJSONPath)
+	}
+}
