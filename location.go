@@ -62,24 +62,12 @@ func LatLonToGrid(lat, lon float64) string {
 	subLat := int(lat * 60 / 2.5)
 
 	// Bounds check for safety
-	if fieldLon > 17 {
-		fieldLon = 17
-	}
-	if fieldLat > 17 {
-		fieldLat = 17
-	}
-	if squareLon > 9 {
-		squareLon = 9
-	}
-	if squareLat > 9 {
-		squareLat = 9
-	}
-	if subLon > 23 {
-		subLon = 23
-	}
-	if subLat > 23 {
-		subLat = 23
-	}
+	fieldLon = max(0, min(fieldLon, 17))
+	fieldLat = max(0, min(fieldLat, 17))
+	squareLon = max(0, min(squareLon, 9))
+	squareLat = max(0, min(squareLat, 9))
+	subLon = max(0, min(subLon, 23))
+	subLat = max(0, min(subLat, 23))
 
 	return fmt.Sprintf("%c%c%01d%01d%c%c",
 		'A'+fieldLon, 'A'+fieldLat,
@@ -149,7 +137,7 @@ func GetGPSDGrid() string {
 
 // GetGPredictGrids returns grids found in GPredict .qth files.
 func GetGPredictGrids(qthPath string) (name string, grid string) {
-	file, err := os.Open(qthPath)
+	file, err := os.Open(filepath.Clean(qthPath))
 	if err != nil {
 		return "", ""
 	}
@@ -193,7 +181,7 @@ func GetGPredictGrids(qthPath string) (name string, grid string) {
 
 // GetXastirGrid returns the grid found in Xastir configuration.
 func GetXastirGrid(cnfPath string) string {
-	file, err := os.Open(cnfPath)
+	file, err := os.Open(filepath.Clean(cnfPath))
 	if err != nil {
 		return ""
 	}

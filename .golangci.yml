@@ -9,6 +9,7 @@ linters:
     - staticcheck
     - govet
     - errcheck
+    - gosec
 formatters:
   enable:
     - gofmt

@@ -40,7 +40,7 @@ func TestGetGPredictGrids(t *testing.T) {
 
 	qthFile := filepath.Join(tmpDir, "TestStation.qth")
 	content := "[QTH]\nLAT=48.8583\nLON=2.2945\nALT=35\n"
-	if err := os.WriteFile(qthFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(qthFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -64,7 +64,7 @@ func TestGetXastirGrid(t *testing.T) {
 	content := "STATION_LAT:4851.498N\nSTATION_LONG:00217.670E\n"
 	// 48 deg 51.498 min = 48.8583
 	// 2 deg 17.670 min = 2.2945
-	if err := os.WriteFile(cnfFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(cnfFile, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 

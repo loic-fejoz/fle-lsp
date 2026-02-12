@@ -160,7 +160,7 @@ func TestHandler_Completion_MyGrid(t *testing.T) {
 
 	qthFile := filepath.Join(tmpDir, "Home.qth")
 	contentFile := "[QTH]\nLAT=48.8583\nLON=2.2945\n"
-	if err := os.WriteFile(qthFile, []byte(contentFile), 0644); err != nil {
+	if err := os.WriteFile(qthFile, []byte(contentFile), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -751,7 +751,7 @@ func TestHandler_ExecuteCommand_GeoJSON(t *testing.T) {
 	tmpDir := t.TempDir()
 	flePath := filepath.Join(tmpDir, "test.fle")
 	content := "mycall F4JXQ\ndate 2026-02-01\n40m cw\n1200 EA1ABC #JN18du"
-	if err := os.WriteFile(flePath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(flePath, []byte(content), 0600); err != nil {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 

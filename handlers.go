@@ -16,6 +16,18 @@ import (
 	"go.uber.org/zap"
 )
 
+func u32(i int32) uint32 {
+	return uint32(max(0, i)) // #nosec G115
+}
+
+func u32i(i int) uint32 {
+	return uint32(max(0, min(int64(i), math.MaxUint32))) // #nosec G115
+}
+
+func i32u(u uint32) int32 {
+	return int32(min(u, math.MaxInt32)) // #nosec G115
+}
+
 // Handler represents the LSP handler for fle-lsp.
 type Handler struct {
 	UnimplementedServer
@@ -153,7 +165,7 @@ func (h *Handler) ExecuteCommand(ctx context.Context, params *protocol.ExecuteCo
 		targetURI := uriStr[:len(uriStr)-len(ext)] + targetExt
 
 		// Write to disk
-		if err := os.WriteFile(targetFile, []byte(gj), 0644); err != nil {
+		if err := os.WriteFile(targetFile, []byte(gj), 0600); err != nil {
 			return nil, fmt.Errorf("failed to write GeoJSON to %s: %v", targetFile, err)
 		}
 
@@ -344,9 +356,9 @@ func (h *Handler) SemanticTokensFull(_ context.Context, params *protocol.Semanti
 	var lastLine, lastChar uint32
 
 	for _, t := range allTokens {
-		line := uint32(t.Range.Start.Line)
-		char := uint32(t.Range.Start.Character)
-		length := uint32(t.Range.End.Character - t.Range.Start.Character)
+		line := u32(t.Range.Start.Line)
+		char := u32(t.Range.Start.Character)
+		length := u32(t.Range.End.Character - t.Range.Start.Character)
 
 		if line < lastLine {
 			h.Logger.Warn("Token line went backwards", zap.Uint32("line", line), zap.Uint32("lastLine", lastLine))
@@ -404,9 +416,9 @@ func (h *Handler) Hover(_ context.Context, params *protocol.HoverParams) (*proto
 		// If no QSO on this line, check if we are over a header token
 		var foundToken *Token
 		for _, t := range doc.Logbook.Tokens {
-			if t.Range.Start.Line == int32(params.Position.Line) &&
-				int32(params.Position.Character) >= t.Range.Start.Character &&
-				int32(params.Position.Character) <= t.Range.End.Character {
+			if t.Range.Start.Line == i32u(params.Position.Line) &&
+				i32u(params.Position.Character) >= t.Range.Start.Character &&
+				i32u(params.Position.Character) <= t.Range.End.Character {
 				foundToken = &t
 				break
 			}
@@ -428,7 +440,7 @@ func (h *Handler) Hover(_ context.Context, params *protocol.HoverParams) (*proto
 		} else if foundToken.Type == TokenExtra {
 			// Find the keyword on the same line
 			for _, t := range doc.Logbook.Tokens {
-				if t.Range.Start.Line == int32(params.Position.Line) && t.Type == TokenKeyword {
+				if t.Range.Start.Line == i32u(params.Position.Line) && t.Type == TokenKeyword {
 					keyword = strings.ToLower(lineText[t.Range.Start.Character:t.Range.End.Character])
 					break
 				}
@@ -544,7 +556,7 @@ func (h *Handler) DocumentSymbol(_ context.Context, params *protocol.DocumentSym
 		y := qso.Timestamp.Year()
 		m := qso.Timestamp.Format("2006-01")
 		d := qso.Timestamp.Format("2006-01-02")
-		line := uint32(qso.LineNumber - 1)
+		line := u32i(qso.LineNumber - 1)
 		qsoRange := protocol.Range{Start: protocol.Position{Line: line}, End: protocol.Position{Line: line}}
 
 		// Handle Year change
@@ -662,7 +674,7 @@ func (h *Handler) FoldingRanges(_ context.Context, params *protocol.FoldingRange
 	getTokenStart := func(startLine, endLine uint32) uint32 {
 		minLine := endLine
 		for _, t := range doc.Logbook.Tokens {
-			l := uint32(t.Range.Start.Line)
+			l := u32(t.Range.Start.Line)
 			if l >= startLine && l < minLine {
 				minLine = l
 			}
@@ -675,7 +687,7 @@ func (h *Handler) FoldingRanges(_ context.Context, params *protocol.FoldingRange
 		y := qso.Timestamp.Year()
 		m := qso.Timestamp.Format("2006-01")
 		d := qso.Timestamp.Format("2006-01-02")
-		line := uint32(qso.LineNumber - 1)
+		line := u32i(qso.LineNumber - 1)
 
 		if y != currentYear {
 			if i > 0 && showYear && yearStartLine < lastLine {
@@ -815,8 +827,8 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 					dailyLabel := fmt.Sprintf("Daily QSOs: %d | Callsigns: %d | Grids: %d | ODX: %dkm", s.qsoCount, len(s.calls), len(s.grids), int(math.Round(s.odx)))
 					res = append(res, InlayHint{
 						Position: protocol.Position{
-							Line:      uint32(t.Range.End.Line),
-							Character: uint32(t.Range.End.Character),
+							Line:      u32(t.Range.End.Line),
+							Character: u32(t.Range.End.Character),
 						},
 						Label:        dailyLabel,
 						PaddingLeft:  true,
@@ -843,8 +855,8 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 				if label != "" {
 					res = append(res, InlayHint{
 						Position: protocol.Position{
-							Line:      uint32(t.Range.Start.Line),
-							Character: uint32(t.Range.Start.Character),
+							Line:      u32(t.Range.Start.Line),
+							Character: u32(t.Range.Start.Character),
 						},
 						Label:       label,
 						PaddingLeft: false,
@@ -872,8 +884,8 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 		for _, t := range doc.Logbook.Tokens[q.TokenStart : q.TokenStart+q.TokenCount] {
 			if t.Type == TokenGrid {
 				pos = protocol.Position{
-					Line:      uint32(t.Range.End.Line),
-					Character: uint32(t.Range.End.Character),
+					Line:      u32(t.Range.End.Line),
+					Character: u32(t.Range.End.Character),
 				}
 				found = true
 				break
@@ -896,22 +908,48 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 // CalculateStatistics computes various metrics for the given logbook.
 func (h *Handler) CalculateStatistics(logbook *Logbook) (qsoCount, uniqueCalls, activatedGrids, collectedGrids, odx int) {
 	qsoCount = len(logbook.QSOs)
+	if qsoCount == 0 {
+		return
+	}
 
-	calls := make(map[string]bool)
-	colGrids := make(map[string]bool)
+	calls := make(map[string]struct{}, qsoCount)
+	colGrids := make(map[string]struct{}, qsoCount/2)
 	var maxDist float64
+
+	type coords struct {
+		lat, lon float64
+	}
+	gridCache := make(map[string]coords, qsoCount/4)
 
 	for _, qso := range logbook.QSOs {
 		baseCall := BaseCallsign(qso.Callsign)
-		calls[baseCall] = true
+		calls[baseCall] = struct{}{}
 		if qso.Grid != "" {
-			colGrids[formatGrid(qso.Grid)] = true
+			g := formatGrid(qso.Grid)
+			colGrids[g] = struct{}{}
 
 			if qso.MyGrid != "" {
-				lat1, lon1, err1 := GridToLatLon(qso.MyGrid)
-				lat2, lon2, err2 := GridToLatLon(qso.Grid)
-				if err1 == nil && err2 == nil {
-					dist := CalculateDistance(lat1, lon1, lat2, lon2)
+				c1, ok1 := gridCache[qso.MyGrid]
+				if !ok1 {
+					lat, lon, err := GridToLatLon(qso.MyGrid)
+					if err == nil {
+						c1 = coords{lat, lon}
+						gridCache[qso.MyGrid] = c1
+						ok1 = true
+					}
+				}
+				c2, ok2 := gridCache[g]
+				if !ok2 {
+					lat, lon, err := GridToLatLon(g)
+					if err == nil {
+						c2 = coords{lat, lon}
+						gridCache[g] = c2
+						ok2 = true
+					}
+				}
+
+				if ok1 && ok2 {
+					dist := CalculateDistance(c1.lat, c1.lon, c2.lat, c2.lon)
 					if dist > maxDist {
 						maxDist = dist
 					}
@@ -974,8 +1012,8 @@ func (h *Handler) Formatting(_ context.Context, params *protocol.DocumentFormatt
 		if formatted != "" && formatted != trimmed {
 			edits = append(edits, protocol.TextEdit{
 				Range: protocol.Range{
-					Start: protocol.Position{Line: uint32(i), Character: 0},
-					End:   protocol.Position{Line: uint32(i), Character: uint32(len(line))},
+					Start: protocol.Position{Line: u32i(i), Character: 0},
+					End:   protocol.Position{Line: u32i(i), Character: u32i(len(line))},
 				},
 				NewText: formatted,
 			})
@@ -1008,8 +1046,8 @@ func (h *Handler) RangeFormatting(_ context.Context, params *protocol.DocumentRa
 		if formatted != "" && formatted != trimmed {
 			edits = append(edits, protocol.TextEdit{
 				Range: protocol.Range{
-					Start: protocol.Position{Line: uint32(i), Character: 0},
-					End:   protocol.Position{Line: uint32(i), Character: uint32(len(line))},
+					Start: protocol.Position{Line: u32i(i), Character: 0},
+					End:   protocol.Position{Line: u32i(i), Character: u32i(len(line))},
 				},
 				NewText: formatted,
 			})
@@ -1148,7 +1186,7 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 		currentLine = docLines[lineNum]
 	}
 	if int(charPos) > len(currentLine) {
-		charPos = uint32(len(currentLine))
+		charPos = u32i(len(currentLine))
 	}
 	trimmedPrefix := strings.TrimSpace(currentLine[:charPos])
 
@@ -1322,8 +1360,8 @@ func (h *Handler) publishDiagnostics(ctx context.Context, uri protocol.DocumentU
 	for i, d := range diags {
 		pDiags[i] = protocol.Diagnostic{
 			Range: protocol.Range{
-				Start: protocol.Position{Line: uint32(d.Range.Start.Line), Character: uint32(d.Range.Start.Character)},
-				End:   protocol.Position{Line: uint32(d.Range.End.Line), Character: uint32(d.Range.End.Character)},
+				Start: protocol.Position{Line: u32(d.Range.Start.Line), Character: u32(d.Range.Start.Character)},
+				End:   protocol.Position{Line: u32(d.Range.End.Line), Character: u32(d.Range.End.Character)},
 			},
 			Severity: protocol.DiagnosticSeverity(d.Severity + 1), // Mapping Severity
 			Code:     d.Code,
@@ -1388,8 +1426,8 @@ func (h *Handler) CodeAction(_ context.Context, params *protocol.CodeActionParam
 							params.TextDocument.URI: {
 								{
 									Range: protocol.Range{
-										Start: protocol.Position{Line: d.Range.Start.Line, Character: uint32(startChar)},
-										End:   protocol.Position{Line: d.Range.Start.Line, Character: uint32(startChar + len(matches[0]))},
+										Start: protocol.Position{Line: d.Range.Start.Line, Character: u32i(startChar)},
+										End:   protocol.Position{Line: d.Range.Start.Line, Character: u32i(startChar + len(matches[0]))},
 									},
 									NewText: fixedDate,
 								},
@@ -1411,8 +1449,8 @@ func (h *Handler) CodeAction(_ context.Context, params *protocol.CodeActionParam
 								params.TextDocument.URI: {
 									{
 										Range: protocol.Range{
-											Start: protocol.Position{Line: d.Range.Start.Line, Character: uint32(startChar)},
-											End:   protocol.Position{Line: d.Range.Start.Line, Character: uint32(startChar + len(matches[0]))},
+											Start: protocol.Position{Line: d.Range.Start.Line, Character: u32i(startChar)},
+											End:   protocol.Position{Line: d.Range.Start.Line, Character: u32i(startChar + len(matches[0]))},
 										},
 										NewText: fixedDate,
 									},

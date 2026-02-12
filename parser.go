@@ -3,11 +3,27 @@ package flelsp
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
+
+func toInt32(i int) int32 {
+	return int32(max(math.MinInt32, min(i, math.MaxInt32))) // #nosec G115
+}
+
+func toPos(line, char int) Pos {
+	return Pos{Line: toInt32(line), Character: toInt32(char)}
+}
+
+func toRange(line, start, end int) Range {
+	return Range{
+		Start: toPos(line, start),
+		End:   toPos(line, end),
+	}
+}
 
 var (
 	simpleDate       = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})$`)
@@ -99,11 +115,8 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 
 		if commentStart != -1 {
 			logbook.Tokens = append(logbook.Tokens, Token{
-				Range: Range{
-					Start: Pos{int32(lineNumber - 1), int32(commentStart)},
-					End:   Pos{int32(lineNumber - 1), int32(len(rawLine))},
-				},
-				Type: TokenComment,
+				Range: toRange(lineNumber-1, commentStart, len(rawLine)),
+				Type:  TokenComment,
 			})
 		}
 
@@ -131,7 +144,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 						state.BaseMyCall = base
 					} else if state.BaseMyCall != base {
 						diagnostics = append(diagnostics, Diagnostic{
-							Range:    Range{Start: Pos{int32(lineNumber - 1), int32(loc[2])}, End: Pos{int32(lineNumber - 1), int32(loc[3])}},
+							Range:    toRange(lineNumber-1, loc[2], loc[3]),
 							Message:  fmt.Sprintf("Keyword 'mycall' redefined with a different base callsign ('%s' vs '%s') is not allowed.", base, state.BaseMyCall),
 							Severity: SeverityError,
 						})
@@ -139,7 +152,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 					}
 				} else if logbook.SeenHeaders[key] {
 					diagnostics = append(diagnostics, Diagnostic{
-						Range:    Range{Start: Pos{int32(lineNumber - 1), int32(loc[2])}, End: Pos{int32(lineNumber - 1), int32(loc[3])}},
+						Range:    toRange(lineNumber-1, loc[2], loc[3]),
 						Message:  fmt.Sprintf("Keyword '%s' already defined. Only one is allowed per file.", key),
 						Severity: SeverityError,
 					})
@@ -168,11 +181,11 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			// Extract starting position in rawLine for accuracy
 			startOfLine := strings.Index(rawLine, line)
 			logbook.Tokens = append(logbook.Tokens, Token{
-				Range: Range{Start: Pos{int32(lineNumber - 1), int32(startOfLine + loc[2])}, End: Pos{int32(lineNumber - 1), int32(startOfLine + loc[3])}},
+				Range: toRange(lineNumber-1, startOfLine+loc[2], startOfLine+loc[3]),
 				Type:  TokenKeyword,
 			})
 			logbook.Tokens = append(logbook.Tokens, Token{
-				Range: Range{Start: Pos{int32(lineNumber - 1), int32(startOfLine + loc[4])}, End: Pos{int32(lineNumber - 1), int32(startOfLine + loc[5])}},
+				Range: toRange(lineNumber-1, startOfLine+loc[4], startOfLine+loc[5]),
 				Type:  TokenExtra,
 			})
 			continue
@@ -184,7 +197,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			parsedDate, err := time.Parse("2006-01-02", dateStr)
 			if err != nil {
 				diagnostics = append(diagnostics, Diagnostic{
-					Range:    Range{Start: Pos{int32(lineNumber - 1), int32(0)}, End: Pos{int32(lineNumber - 1), int32(len(rawLine))}},
+					Range:    toRange(lineNumber-1, 0, len(rawLine)),
 					Message:  fmt.Sprintf("Invalid date format: %v", err),
 					Severity: SeverityError,
 					Code:     CodeInvalidDate,
@@ -195,7 +208,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 
 			startOfLine := strings.Index(rawLine, line)
 			logbook.Tokens = append(logbook.Tokens, Token{
-				Range: Range{Start: Pos{int32(lineNumber - 1), int32(startOfLine + loc[0])}, End: Pos{int32(lineNumber - 1), int32(startOfLine + loc[1])}},
+				Range: toRange(lineNumber-1, startOfLine+loc[0], startOfLine+loc[1]),
 				Type:  TokenDate,
 			})
 			continue
@@ -205,7 +218,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			parsedDate, err := time.Parse("2006-01-02", dateStr)
 			if err != nil {
 				diagnostics = append(diagnostics, Diagnostic{
-					Range:    Range{Start: Pos{int32(lineNumber - 1), int32(0)}, End: Pos{int32(lineNumber - 1), int32(len(rawLine))}},
+					Range:    toRange(lineNumber-1, 0, len(rawLine)),
 					Message:  fmt.Sprintf("Invalid date format: %v", err),
 					Severity: SeverityError,
 					Code:     CodeInvalidDate,
@@ -216,7 +229,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 
 			startOfLine := strings.Index(rawLine, line)
 			logbook.Tokens = append(logbook.Tokens, Token{
-				Range: Range{Start: Pos{int32(lineNumber - 1), int32(startOfLine + loc[0])}, End: Pos{int32(lineNumber - 1), int32(startOfLine + loc[1])}},
+				Range: toRange(lineNumber-1, startOfLine+loc[0], startOfLine+loc[1]),
 				Type:  TokenDate,
 			})
 			continue
@@ -224,7 +237,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 		// Handle almost-correct dates for Quick Fix
 		if loc := invalidDateRegex.FindStringSubmatchIndex(line); loc != nil {
 			diagnostics = append(diagnostics, Diagnostic{
-				Range:    Range{Start: Pos{int32(lineNumber - 1), int32(0)}, End: Pos{int32(lineNumber - 1), int32(len(rawLine))}},
+				Range:    toRange(lineNumber-1, 0, len(rawLine)),
 				Message:  "Invalid date format: use YYYY-MM-DD",
 				Severity: SeverityError,
 				Code:     CodeInvalidDate,
@@ -233,7 +246,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 		}
 		if loc := eurDateRegex.FindStringSubmatchIndex(line); loc != nil {
 			diagnostics = append(diagnostics, Diagnostic{
-				Range:    Range{Start: Pos{int32(lineNumber - 1), int32(0)}, End: Pos{int32(lineNumber - 1), int32(len(rawLine))}},
+				Range:    toRange(lineNumber-1, 0, len(rawLine)),
 				Message:  "Invalid date format: use YYYY-MM-DD",
 				Severity: SeverityError,
 				Code:     CodeInvalidDate,
@@ -243,7 +256,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 		if dayPlus.MatchString(line) {
 			if state.Date.IsZero() {
 				diagnostics = append(diagnostics, Diagnostic{
-					Range:    Range{Start: Pos{int32(lineNumber - 1), 0}, End: Pos{int32(lineNumber - 1), int32(len(rawLine))}},
+					Range:    toRange(lineNumber-1, 0, len(rawLine)),
 					Message:  "day + used before any date was set",
 					Severity: SeverityError,
 				})
@@ -253,7 +266,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 
 				startOfLine := strings.Index(rawLine, line)
 				logbook.Tokens = append(logbook.Tokens, Token{
-					Range: Range{Start: Pos{int32(lineNumber - 1), int32(startOfLine)}, End: Pos{int32(lineNumber - 1), int32(startOfLine + len(line))}},
+					Range: toRange(lineNumber-1, startOfLine, startOfLine+len(line)),
 					Type:  TokenDate,
 				})
 			}
@@ -283,7 +296,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 					tokenType = TokenMode
 				}
 				logbook.Tokens = append(logbook.Tokens, Token{
-					Range: Range{Start: Pos{int32(lineNumber - 1), int32(startOfLine + start)}, End: Pos{int32(lineNumber - 1), int32(startOfLine + start + len(f))}},
+					Range: toRange(lineNumber-1, startOfLine+start, startOfLine+start+len(f)),
 					Type:  tokenType,
 				})
 			}
@@ -295,21 +308,21 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 			// Validate QSO context
 			if state.Date.IsZero() {
 				diagnostics = append(diagnostics, Diagnostic{
-					Range:    Range{Start: Pos{int32(lineNumber - 1), 0}, End: Pos{int32(lineNumber - 1), int32(len(rawLine))}},
+					Range:    toRange(lineNumber-1, 0, len(rawLine)),
 					Message:  "QSO entered before any date was set",
 					Severity: SeverityError,
 				})
 			}
 			if state.Band == "" {
 				diagnostics = append(diagnostics, Diagnostic{
-					Range:    Range{Start: Pos{int32(lineNumber - 1), 0}, End: Pos{int32(lineNumber - 1), int32(len(rawLine))}},
+					Range:    toRange(lineNumber-1, 0, len(rawLine)),
 					Message:  "QSO entered before any band was set",
 					Severity: SeverityWarning,
 				})
 			}
 			if state.Mode == "" {
 				diagnostics = append(diagnostics, Diagnostic{
-					Range:    Range{Start: Pos{int32(lineNumber - 1), 0}, End: Pos{int32(lineNumber - 1), int32(len(rawLine))}},
+					Range:    toRange(lineNumber-1, 0, len(rawLine)),
 					Message:  "QSO entered before any mode was set",
 					Severity: SeverityWarning,
 				})
@@ -318,7 +331,7 @@ func ParseFLE(content string) (*Logbook, []Diagnostic, error) {
 		} else {
 			// Unknown line format
 			diagnostics = append(diagnostics, Diagnostic{
-				Range:    Range{Start: Pos{int32(lineNumber - 1), 0}, End: Pos{int32(lineNumber - 1), int32(len(rawLine))}},
+				Range:    toRange(lineNumber-1, 0, len(rawLine)),
 				Message:  "Unrecognized line format",
 				Severity: SeverityInfo,
 			})
@@ -455,14 +468,14 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 			mins, _ := strconv.Atoi(minsStr)
 			if mins > 59 {
 				diags = append(diags, Diagnostic{
-					Range:    Range{Start: Pos{int32(lineNum - 1), int32(startOfTrimmed + timeStart)}, End: Pos{int32(lineNum - 1), int32(startOfTrimmed + timeStart + len(rawTime))}},
+					Range:    toRange(lineNum-1, startOfTrimmed+timeStart, startOfTrimmed+timeStart+len(rawTime)),
 					Message:  fmt.Sprintf("Invalid minutes: %s", minsStr),
 					Severity: SeverityError,
 				})
 			}
 		}
 		lb.Tokens = append(lb.Tokens, Token{
-			Range: Range{Start: Pos{int32(lineNum - 1), int32(startOfTrimmed + timeStart)}, End: Pos{int32(lineNum - 1), int32(startOfTrimmed + timeStart + len(rawTime))}},
+			Range: toRange(lineNum-1, startOfTrimmed+timeStart, startOfTrimmed+timeStart+len(rawTime)),
 			Type:  TokenTime,
 		})
 	}
@@ -473,7 +486,7 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 	// 2. Check for monotonic time
 	if state.LastTime != "" && expandedTime < state.LastTime {
 		diags = append(diags, Diagnostic{
-			Range:    Range{Start: Pos{int32(lineNum - 1), int32(startOfTrimmed + timeStart)}, End: Pos{int32(lineNum - 1), int32(startOfTrimmed + timeStart + len(rawTime))}},
+			Range:    toRange(lineNum-1, startOfTrimmed+timeStart, startOfTrimmed+timeStart+len(rawTime)),
 			Message:  fmt.Sprintf("Time goes backwards: %s < %s", expandedTime, state.LastTime),
 			Severity: SeverityWarning,
 		})
@@ -482,14 +495,14 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 	state.LastTime = expandedTime
 
 	lb.Tokens = append(lb.Tokens, Token{
-		Range: Range{Start: Pos{int32(lineNum - 1), int32(startOfTrimmed + callStart)}, End: Pos{int32(lineNum - 1), int32(startOfTrimmed + callEnd)}},
+		Range: toRange(lineNum-1, startOfTrimmed+callStart, startOfTrimmed+callEnd),
 		Type:  TokenCallsign,
 	})
 
 	// Add warning for lowercase callsign
 	if strings.ToUpper(callsign) != callsign {
 		diags = append(diags, Diagnostic{
-			Range:    Range{Start: Pos{int32(lineNum - 1), int32(startOfTrimmed + callStart)}, End: Pos{int32(lineNum - 1), int32(startOfTrimmed + callEnd)}},
+			Range:    toRange(lineNum-1, startOfTrimmed+callStart, startOfTrimmed+callEnd),
 			Message:  fmt.Sprintf("Callsign should be uppercased: %s", callsign),
 			Severity: SeverityWarning,
 			Code:     CodeLowercaseCallsign,
@@ -498,13 +511,13 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 
 	if rstS != "" {
 		lb.Tokens = append(lb.Tokens, Token{
-			Range: Range{Start: Pos{int32(lineNum - 1), int32(startOfTrimmed + rstSStart)}, End: Pos{int32(lineNum - 1), int32(startOfTrimmed + rstSEnd)}},
+			Range: toRange(lineNum-1, startOfTrimmed+rstSStart, startOfTrimmed+rstSEnd),
 			Type:  TokenReport,
 		})
 	}
 	if rstR != "" {
 		lb.Tokens = append(lb.Tokens, Token{
-			Range: Range{Start: Pos{int32(lineNum - 1), int32(startOfTrimmed + rstRStart)}, End: Pos{int32(lineNum - 1), int32(startOfTrimmed + rstREnd)}},
+			Range: toRange(lineNum-1, startOfTrimmed+rstRStart, startOfTrimmed+rstREnd),
 			Type:  TokenReport,
 		})
 	}
@@ -538,7 +551,7 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 
 	// Parse extras manually to avoid regex allocations
 	if extras != "" {
-		start := int32(startOfTrimmed + extrasStart)
+		start := startOfTrimmed + extrasStart
 		l := len(extras)
 		for i := 0; i < l; i++ {
 			c := extras[i]
@@ -550,7 +563,7 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 				}
 				qso.Name = si.intern(extras[i+1 : j])
 				lb.Tokens = append(lb.Tokens, Token{
-					Range: Range{Start: Pos{int32(lineNum - 1), start + int32(i)}, End: Pos{int32(lineNum - 1), start + int32(j)}},
+					Range: toRange(lineNum-1, start+i, start+j),
 					Type:  TokenName,
 				})
 				i = j - 1
@@ -561,7 +574,7 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 				}
 				qso.Grid = si.intern(formatGrid(extras[i+1 : j]))
 				lb.Tokens = append(lb.Tokens, Token{
-					Range: Range{Start: Pos{int32(lineNum - 1), start + int32(i)}, End: Pos{int32(lineNum - 1), start + int32(j)}},
+					Range: toRange(lineNum-1, start+i, start+j),
 					Type:  TokenGrid,
 				})
 				i = j - 1
@@ -573,7 +586,7 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 				if j < l {
 					qso.QSLMsg = extras[i+1 : j]
 					lb.Tokens = append(lb.Tokens, Token{
-						Range: Range{Start: Pos{int32(lineNum - 1), start + int32(i)}, End: Pos{int32(lineNum - 1), start + int32(j+1)}},
+						Range: toRange(lineNum-1, start+i, start+j+1),
 						Type:  TokenExtra,
 					})
 					i = j
@@ -586,7 +599,7 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 				if j < l {
 					qso.Comment = extras[i+1 : j]
 					lb.Tokens = append(lb.Tokens, Token{
-						Range: Range{Start: Pos{int32(lineNum - 1), start + int32(i)}, End: Pos{int32(lineNum - 1), start + int32(j+1)}},
+						Range: toRange(lineNum-1, start+i, start+j+1),
 						Type:  TokenComment,
 					})
 					i = j
@@ -600,7 +613,7 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 				if !isDigit(c) && i+3 < l && isLetter(extras[i]) && isLetter(extras[i+1]) && isDigit(extras[i+2]) && isDigit(extras[i+3]) && (i+4 == l || isSpaceOrSpecial(extras[i+4])) {
 					qso.Grid = si.intern(formatGrid(extras[i : i+4]))
 					lb.Tokens = append(lb.Tokens, Token{
-						Range: Range{Start: Pos{int32(lineNum - 1), start + int32(i)}, End: Pos{int32(lineNum - 1), start + int32(i+4)}},
+						Range: toRange(lineNum-1, start+i, start+i+4),
 						Type:  TokenGrid,
 					})
 					i += 3
@@ -609,8 +622,8 @@ func parseQSOLine(lb *Logbook, line string, state *InternalState, lineNum int, s
 		}
 	}
 
-	qso.TokenStart = int32(tokenStart)
-	qso.TokenCount = int32(len(lb.Tokens) - tokenStart)
+	qso.TokenStart = toInt32(tokenStart)
+	qso.TokenCount = toInt32(len(lb.Tokens) - tokenStart)
 
 	return qso, diags, true
 }
