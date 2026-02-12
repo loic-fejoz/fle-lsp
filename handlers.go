@@ -1404,7 +1404,7 @@ func (h *Handler) CodeAction(_ context.Context, params *protocol.CodeActionParam
 		switch code {
 		case CodeInvalidDate:
 			// "Fix date format"
-			line := doc.Text[0:0] // Fallback
+			var line string
 			lines := strings.Split(doc.Text, "\n")
 			if int(d.Range.Start.Line) < len(lines) {
 				line = lines[d.Range.Start.Line]

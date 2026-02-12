@@ -7,7 +7,13 @@ import (
 )
 
 func main() {
-	logger, _ := zap.NewDevelopmentConfig().Build()
+	logger, err := zap.NewDevelopmentConfig().Build()
+	if err != nil {
+		panic("failed to initialize logger: " + err.Error())
+	}
+	defer func() {
+		_ = logger.Sync()
+	}()
 
 	// Start the server
 	logger.Sugar().Info("Starting the server...")
