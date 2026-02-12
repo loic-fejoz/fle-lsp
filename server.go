@@ -99,8 +99,7 @@ type readWriteCloser struct {
 }
 
 func (r *readWriteCloser) Read(b []byte) (int, error) {
-	n, err := r.reader.Read(b)
-	return n, err
+	return r.reader.Read(b)
 }
 
 func (r *readWriteCloser) Write(b []byte) (int, error) {

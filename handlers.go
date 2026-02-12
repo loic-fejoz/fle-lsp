@@ -532,13 +532,7 @@ func (h *Handler) DocumentSymbol(_ context.Context, params *protocol.DocumentSym
 	}
 
 	// 1. Preliminary scan to determine if we should show Year/Month
-	years := make(map[int]bool)
-	months := make(map[string]bool) // Key: "Year-Month"
-	for _, qso := range doc.Logbook.QSOs {
-		years[qso.Timestamp.Year()] = true
-		months[qso.Timestamp.Format("2006-01")] = true
-	}
-
+	years, months := getLogbookDateCoverage(doc.Logbook)
 	showYear := len(years) > 1
 	showMonth := len(months) > 1
 
@@ -562,7 +556,7 @@ func (h *Handler) DocumentSymbol(_ context.Context, params *protocol.DocumentSym
 		// Handle Year change
 		if y != currentYear {
 			if yearSym != nil {
-				h.appendLevel(&finalSymbols, yearSym, monthSym, daySym, showYear, showMonth)
+				appendLevel(&finalSymbols, yearSym, monthSym, daySym, showYear, showMonth)
 			}
 			currentYear = y
 			currentMonth = "" // Reset month/day on year change
@@ -581,7 +575,7 @@ func (h *Handler) DocumentSymbol(_ context.Context, params *protocol.DocumentSym
 		// Handle Month change
 		if m != currentMonth {
 			if monthSym != nil {
-				h.appendMonthToYear(yearSym, monthSym, daySym, showMonth)
+				appendMonthToYear(yearSym, monthSym, daySym, showMonth)
 			}
 			currentMonth = m
 			currentDate = "" // Reset day on month change
@@ -631,7 +625,7 @@ func (h *Handler) DocumentSymbol(_ context.Context, params *protocol.DocumentSym
 	}
 
 	// Final append
-	h.appendLevel(&finalSymbols, yearSym, monthSym, daySym, showYear, showMonth)
+	appendLevel(&finalSymbols, yearSym, monthSym, daySym, showYear, showMonth)
 
 	res := make([]interface{}, len(finalSymbols))
 	for i, s := range finalSymbols {
@@ -653,12 +647,7 @@ func (h *Handler) FoldingRanges(_ context.Context, params *protocol.FoldingRange
 	}
 
 	// Logic similar to DocumentSymbol to find ranges
-	years := make(map[int]bool)
-	months := make(map[string]bool)
-	for _, qso := range doc.Logbook.QSOs {
-		years[qso.Timestamp.Year()] = true
-		months[qso.Timestamp.Format("2006-01")] = true
-	}
+	years, months := getLogbookDateCoverage(doc.Logbook)
 	showYear := len(years) > 1
 	showMonth := len(months) > 1
 
@@ -756,46 +745,16 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 	}
 	res := make([]InlayHint, 0)
 
-	qsoCount, uniqueCalls, activatedGrids, collectedGrids, odx := h.CalculateStatistics(doc.Logbook)
+	global, daily := CalculateStatistics(doc.Logbook)
 
 	label := fmt.Sprintf("Total QSOs: %d | Callsigns: %d | Activated Grids: %d | Collected Grids: %d | ODX: %dkm",
-		qsoCount, uniqueCalls, activatedGrids, collectedGrids, odx)
+		global.QSOCount, global.UniqueCalls, global.ActivatedGrids, global.CollectedGrids, global.ODX)
 
 	res = append(res, InlayHint{
 		Position:     protocol.Position{Line: 0, Character: 0},
 		Label:        label,
 		PaddingRight: true,
 	})
-
-	type dailyStats struct {
-		qsoCount int
-		calls    map[string]bool
-		grids    map[string]bool
-		odx      float64
-	}
-	daily := make(map[string]*dailyStats)
-	for _, q := range doc.Logbook.QSOs {
-		d := q.Timestamp.Format("2006-01-02")
-		if daily[d] == nil {
-			daily[d] = &dailyStats{calls: make(map[string]bool), grids: make(map[string]bool)}
-		}
-		stats := daily[d]
-		stats.qsoCount++
-		stats.calls[BaseCallsign(q.Callsign)] = true
-		if q.Grid != "" {
-			stats.grids[formatGrid(q.Grid)] = true
-			if q.MyGrid != "" {
-				lat1, lon1, err1 := GridToLatLon(q.MyGrid)
-				lat2, lon2, err2 := GridToLatLon(q.Grid)
-				if err1 == nil && err2 == nil {
-					dist := CalculateDistance(lat1, lon1, lat2, lon2)
-					if dist > stats.odx {
-						stats.odx = dist
-					}
-				}
-			}
-		}
-	}
 
 	var currentDate time.Time
 	lines := strings.Split(doc.Text, "\n")
@@ -824,7 +783,7 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 			if !currentDate.IsZero() {
 				dKey := currentDate.Format("2006-01-02")
 				if s, ok := daily[dKey]; ok {
-					dailyLabel := fmt.Sprintf("Daily QSOs: %d | Callsigns: %d | Grids: %d | ODX: %dkm", s.qsoCount, len(s.calls), len(s.grids), int(math.Round(s.odx)))
+					dailyLabel := fmt.Sprintf("Daily QSOs: %d | Callsigns: %d | Grids: %d | ODX: %dkm", s.QSOCount, s.UniqueCalls, s.Grids, s.ODX)
 					res = append(res, InlayHint{
 						Position: protocol.Position{
 							Line:      u32(t.Range.End.Line),
@@ -906,14 +865,18 @@ func (h *Handler) InlayHint(_ context.Context, params *InlayHintParams) ([]Inlay
 }
 
 // CalculateStatistics computes various metrics for the given logbook.
-func (h *Handler) CalculateStatistics(logbook *Logbook) (qsoCount, uniqueCalls, activatedGrids, collectedGrids, odx int) {
-	qsoCount = len(logbook.QSOs)
+func CalculateStatistics(logbook *Logbook) (GlobalStats, map[string]*DailyStats) {
+	qsoCount := len(logbook.QSOs)
 	if qsoCount == 0 {
-		return
+		return GlobalStats{}, nil
 	}
 
-	calls := make(map[string]struct{}, qsoCount)
+	globalCalls := make(map[string]struct{}, qsoCount)
 	colGrids := make(map[string]struct{}, qsoCount/2)
+	daily := make(map[string]*DailyStats)
+	dailyCalls := make(map[string]map[string]struct{})
+	dailyGrids := make(map[string]map[string]struct{})
+
 	var maxDist float64
 
 	type coords struct {
@@ -923,10 +886,23 @@ func (h *Handler) CalculateStatistics(logbook *Logbook) (qsoCount, uniqueCalls, 
 
 	for _, qso := range logbook.QSOs {
 		baseCall := BaseCallsign(qso.Callsign)
-		calls[baseCall] = struct{}{}
+		globalCalls[baseCall] = struct{}{}
+
+		// Daily stats
+		d := qso.Timestamp.Format("2006-01-02")
+		if daily[d] == nil {
+			daily[d] = &DailyStats{}
+			dailyCalls[d] = make(map[string]struct{})
+			dailyGrids[d] = make(map[string]struct{})
+		}
+		ds := daily[d]
+		ds.QSOCount++
+		dailyCalls[d][baseCall] = struct{}{}
+
 		if qso.Grid != "" {
 			g := formatGrid(qso.Grid)
 			colGrids[g] = struct{}{}
+			dailyGrids[d][g] = struct{}{}
 
 			if qso.MyGrid != "" {
 				c1, ok1 := gridCache[qso.MyGrid]
@@ -953,26 +929,47 @@ func (h *Handler) CalculateStatistics(logbook *Logbook) (qsoCount, uniqueCalls, 
 					if dist > maxDist {
 						maxDist = dist
 					}
+					if dist > float64(ds.ODX) {
+						ds.ODX = int(math.Round(dist))
+					}
 				}
 			}
 		}
 	}
 
-	uniqueCalls = len(calls)
-	activatedGrids = len(logbook.ActivatedGrids)
-	collectedGrids = len(colGrids)
-	odx = int(math.Round(maxDist))
+	for d, ds := range daily {
+		ds.UniqueCalls = len(dailyCalls[d])
+		ds.Grids = len(dailyGrids[d])
+	}
 
-	return
+	global := GlobalStats{
+		QSOCount:       qsoCount,
+		UniqueCalls:    len(globalCalls),
+		ActivatedGrids: len(logbook.ActivatedGrids),
+		CollectedGrids: len(colGrids),
+		ODX:            int(math.Round(maxDist)),
+	}
+
+	return global, daily
 }
 
-func (h *Handler) appendMonthToYear(_ *protocol.DocumentSymbol, month *protocol.DocumentSymbol, day *protocol.DocumentSymbol, _ bool) {
+func getLogbookDateCoverage(logbook *Logbook) (map[int]bool, map[string]bool) {
+	years := make(map[int]bool)
+	months := make(map[string]bool)
+	for _, qso := range logbook.QSOs {
+		years[qso.Timestamp.Year()] = true
+		months[qso.Timestamp.Format("2006-01")] = true
+	}
+	return years, months
+}
+
+func appendMonthToYear(_ *protocol.DocumentSymbol, month *protocol.DocumentSymbol, day *protocol.DocumentSymbol, _ bool) {
 	if day != nil {
 		month.Children = append(month.Children, *day)
 	}
 }
 
-func (h *Handler) appendLevel(root *[]protocol.DocumentSymbol, year *protocol.DocumentSymbol, month *protocol.DocumentSymbol, day *protocol.DocumentSymbol, showYear, showMonth bool) {
+func appendLevel(root *[]protocol.DocumentSymbol, year *protocol.DocumentSymbol, month *protocol.DocumentSymbol, day *protocol.DocumentSymbol, showYear, showMonth bool) {
 	if day != nil {
 		month.Children = append(month.Children, *day)
 	}

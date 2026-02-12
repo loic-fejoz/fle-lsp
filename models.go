@@ -145,3 +145,20 @@ type InlayHint struct {
 	PaddingLeft  bool              `json:"paddingLeft,omitempty"`
 	PaddingRight bool              `json:"paddingRight,omitempty"`
 }
+
+// GlobalStats represents overall logbook statistics.
+type GlobalStats struct {
+	QSOCount       int
+	UniqueCalls    int
+	ActivatedGrids int
+	CollectedGrids int
+	ODX            int
+}
+
+// DailyStats represents statistics for a single day.
+type DailyStats struct {
+	QSOCount    int
+	UniqueCalls int
+	Grids       int
+	ODX         int
+}

@@ -27,14 +27,12 @@ func BenchmarkParseFLE_Large(b *testing.B) {
 		b.Fatalf("failed to read test_large.fle: %v", err)
 	}
 	sContent := string(content)
-	h := &Handler{}
-
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		lb, _, err := ParseFLE(sContent)
 		if err != nil {
 			b.Fatal(err)
 		}
-		h.CalculateStatistics(lb)
+		CalculateStatistics(lb)
 	}
 }
