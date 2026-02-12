@@ -10,10 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
         go-version: '1.24'
         cache: true
@@ -23,6 +23,9 @@ jobs:
 
     - name: Verify dependencies
       run: go mod verify
+
+    - name: Check go.sum integrity
+      run: go mod tidy -diff
 
     - name: Build
       run: go build -v -o fle-lsp ./cmd/main.go
@@ -48,7 +51,7 @@ jobs:
         fi
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         files: coverage.txt
         fail_ci_if_error: false

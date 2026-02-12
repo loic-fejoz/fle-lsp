@@ -6,6 +6,9 @@ linters:
   enable:
     - misspell
     - revive
+    - staticcheck
+    - govet
+    - errcheck
 formatters:
   enable:
     - gofmt
