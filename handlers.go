@@ -6,7 +6,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -96,7 +95,7 @@ func (h *Handler) Initialize(_ context.Context, params *protocol.InitializeParam
 			},
 		},
 		ServerInfo: &protocol.ServerInfo{
-			Name:    "ortfols",
+			Name:    "fle-lsp",
 			Version: fmt.Sprintf("%s (built at %s)", "0.0.0", BuiltAt),
 		},
 	}, nil
@@ -1096,7 +1095,6 @@ func (h *Handler) normalizeLine(trimmed string) string {
 		if loc[10] != -1 {
 			extras = trimmed[loc[10]:loc[11]]
 			// Normalize grid in extras (e.g., #JN38QR -> #JN38qr)
-			extraGridRegex := regexp.MustCompile(`#([a-zA-Z0-9]+)`)
 			extras = extraGridRegex.ReplaceAllStringFunc(extras, func(m string) string {
 				return "#" + formatGrid(m[1:])
 			})

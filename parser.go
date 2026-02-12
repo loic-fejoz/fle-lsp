@@ -20,8 +20,23 @@ var (
 	dateRegex        = regexp.MustCompile(`^date\s+(\d{4}-\d{2}-\d{2})$`)
 	qsoLineRegex     = regexp.MustCompile(`^(\d{2,4})?\s*([a-zA-Z0-9/]+)\s*(\d{1,3})?\s*(\d{1,3})?\s*(.*)$`)
 
-	reISODate = regexp.MustCompile(`(\d{4})[/. ](\d{2})[/. ](\d{2})`)
-	reEurDate = regexp.MustCompile(`(\d{2})[/. ](\d{2})[/. ](\d{4})`)
+	reISODate      = regexp.MustCompile(`(\d{4})[/. ](\d{2})[/. ](\d{2})`)
+	reEurDate      = regexp.MustCompile(`(\d{2})[/. ](\d{2})[/. ](\d{4})`)
+	extraGridRegex = regexp.MustCompile(`#([a-zA-Z0-9]+)`)
+
+	suffixesToIgnore = map[string]bool{
+		// ITU Authorized
+		"P":  true, // Portable
+		"M":  true, // Mobile
+		"MM": true, // Maritime Mobile
+		// Common conventions / Special events
+		"AM":  true, // Aeronautical Mobile
+		"QRP": true, // Low Power
+		"LH":  true, // Lighthouse
+		"R":   true, // Repeater/Remote
+		"B":   true, // Beacon
+		"J":   true, // Jamboree
+	}
 )
 
 // ParseFLE parses the content of an FLE document and returns a Logbook, diagnostics, and any error.
@@ -693,11 +708,7 @@ func BaseCallsign(call string) string {
 }
 
 func isSuffixOrPrefixToIgnore(part string) bool {
-	toIgnore := map[string]bool{
-		"P": true, "M": true, "MM": true, "AM": true, "QRP": true, "LH": true,
-		"R": true, "B": true, "J": true,
-	}
-	if toIgnore[part] {
+	if suffixesToIgnore[part] {
 		return true
 	}
 	// Ignore single digits (e.g., F4JXQ/1)

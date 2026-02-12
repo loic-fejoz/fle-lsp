@@ -105,7 +105,6 @@ func GetGPSDGrid() string {
 	// 4096 bytes should be enough for any TPV or VERSION message.
 	limitReader := io.LimitReader(conn, 4096)
 	decoder := json.NewDecoder(limitReader)
-	decoder.DisallowUnknownFields()
 
 	for {
 		// GPSD sends various message types (VERSION, DEVICES, WATCH, TPV).
