@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -71,7 +72,7 @@ func (h *Handler) Initialize(_ context.Context, params *protocol.InitializeParam
 			HoverProvider:          true,
 			DocumentSymbolProvider: true,
 			CompletionProvider: &protocol.CompletionOptions{
-				TriggerCharacters: []string{"@", "#"},
+				TriggerCharacters: []string{"@", "#", ",", "."},
 			},
 			DocumentFormattingProvider:      true,
 			DocumentRangeFormattingProvider: true,
@@ -350,6 +351,7 @@ func (h *Handler) SemanticTokensFull(_ context.Context, params *protocol.Semanti
 		TokenComment:  8, // SemanticTokenComment
 		TokenKeyword:  2, // SemanticTokenKeyword
 		TokenReport:   3, // SemanticTokenNumber (Report)
+		TokenSerial:   3, // SemanticTokenNumber (Serial)
 		TokenExtra:    8, // SemanticTokenComment (Extra info)
 	}
 	data := make([]uint32, 0)
@@ -1343,6 +1345,38 @@ func (h *Handler) Completion(_ context.Context, params *protocol.CompletionParam
 			InsertText: m,
 			Kind:       protocol.CompletionItemKindEnumMember,
 			Detail:     "Mode",
+		})
+	}
+
+	// 5. Add Serial Number suggestions
+	if wordStart < charPos && currentLine[wordStart] == ',' {
+		// Sent Serial suggest next number
+		maxSerial := 0
+		for _, q := range doc.Logbook.QSOs {
+			if q.SerialSent != "" {
+				s, _ := strconv.Atoi(q.SerialSent)
+				if s > maxSerial {
+					maxSerial = s
+				}
+			}
+		}
+		nextSerial := fmt.Sprintf("%d", maxSerial+1)
+		// If nothing found, suggest 001
+		if maxSerial == 0 {
+			nextSerial = "001"
+		}
+		items = append(items, protocol.CompletionItem{
+			Label: nextSerial,
+			TextEdit: &protocol.TextEdit{
+				Range: protocol.Range{
+					Start: protocol.Position{Line: lineNum, Character: wordStart + 1},
+					End:   protocol.Position{Line: lineNum, Character: charPos},
+				},
+				NewText: nextSerial,
+			},
+			InsertText: nextSerial,
+			Kind:       protocol.CompletionItemKindValue,
+			Detail:     "Next Sent Serial",
 		})
 	}
 

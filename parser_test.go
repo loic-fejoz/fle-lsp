@@ -353,3 +353,47 @@ date 2023-10-26 # EOL Date comment
 		t.Errorf("Expected 6 comment tokens, got %d", commentCount)
 	}
 }
+
+func TestSerialNumbers(t *testing.T) {
+	content := `
+mycall F4JXQ
+date 2023-10-26
+40m CW
+1235 F6DCD ,337 .781
+1236 F4AAB 579 ,338 589 .782
+1237 K1ABC .783
+`
+	logbook, diags, err := ParseFLE(content)
+	if err != nil {
+		t.Fatalf("ParseFLE failed: %v", err)
+	}
+	if len(diags) > 0 {
+		t.Logf("Diags: %v", diags)
+	}
+
+	if len(logbook.QSOs) != 3 {
+		t.Fatalf("Expected 3 QSOs, got %d", len(logbook.QSOs))
+	}
+
+	// Case 1: Just serials
+	q1 := logbook.QSOs[0]
+	if q1.SerialSent != "337" || q1.SerialReceived != "781" {
+		t.Errorf("QSO1 serials mismatch: sent=%s, rcvd=%s", q1.SerialSent, q1.SerialReceived)
+	}
+	// Default reports (CW)
+	if q1.ReportSent != "599" || q1.ReportReceived != "599" {
+		t.Errorf("QSO1 reports mismatch: sent=%s, rcvd=%s", q1.ReportSent, q1.ReportReceived)
+	}
+
+	// Case 2: Full reports and serials
+	q2 := logbook.QSOs[1]
+	if q2.ReportSent != "579" || q2.SerialSent != "338" || q2.ReportReceived != "589" || q2.SerialReceived != "782" {
+		t.Errorf("QSO2 mismatch: reportS=%s, serialS=%s, reportR=%s, serialR=%s", q2.ReportSent, q2.SerialSent, q2.ReportReceived, q2.SerialReceived)
+	}
+
+	// Case 3: Just received serial
+	q3 := logbook.QSOs[2]
+	if q3.SerialReceived != "783" || q3.SerialSent != "" {
+		t.Errorf("QSO3 serials mismatch: sent=%s, rcvd=%s", q3.SerialSent, q3.SerialReceived)
+	}
+}

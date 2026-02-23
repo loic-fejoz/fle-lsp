@@ -158,11 +158,15 @@
           "named": true
         },
         {
-          "type": "rst_rcvd",
+          "type": "rst",
           "named": true
         },
         {
-          "type": "rst_sent",
+          "type": "serial_rcvd",
+          "named": true
+        },
+        {
+          "type": "serial_sent",
           "named": true
         },
         {
@@ -173,12 +177,17 @@
     }
   },
   {
-    "type": "rst_rcvd",
+    "type": "rst",
     "named": true,
     "fields": {}
   },
   {
-    "type": "rst_sent",
+    "type": "serial_rcvd",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "serial_sent",
     "named": true,
     "fields": {}
   },
@@ -219,6 +228,14 @@
   },
   {
     "type": "#",
+    "named": false
+  },
+  {
+    "type": ",",
+    "named": false
+  },
+  {
+    "type": ".",
     "named": false
   },
   {

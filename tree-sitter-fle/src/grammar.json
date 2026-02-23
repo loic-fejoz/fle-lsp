@@ -340,33 +340,24 @@
           "name": "callsign"
         },
         {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "rst_sent"
-                },
-                {
-                  "type": "CHOICE",
-                  "members": [
-                    {
-                      "type": "SYMBOL",
-                      "name": "rst_rcvd"
-                    },
-                    {
-                      "type": "BLANK"
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
+          "type": "REPEAT",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "rst"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "serial_sent"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "serial_rcvd"
+              }
+            ]
+          }
         },
         {
           "type": "REPEAT",
@@ -385,13 +376,35 @@
       "type": "PATTERN",
       "value": "[a-zA-Z0-9/]+"
     },
-    "rst_sent": {
+    "rst": {
       "type": "PATTERN",
       "value": "\\d+"
     },
-    "rst_rcvd": {
-      "type": "PATTERN",
-      "value": "\\d+"
+    "serial_sent": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": ","
+        },
+        {
+          "type": "PATTERN",
+          "value": "\\d+"
+        }
+      ]
+    },
+    "serial_rcvd": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "."
+        },
+        {
+          "type": "PATTERN",
+          "value": "\\d+"
+        }
+      ]
     },
     "qso_extra": {
       "type": "CHOICE",

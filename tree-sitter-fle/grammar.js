@@ -69,14 +69,15 @@ module.exports = grammar({
         qso_line: $ => seq(
             optional($.time),
             $.callsign,
-            optional(seq($.rst_sent, optional($.rst_rcvd))),
+            repeat(choice($.rst, $.serial_sent, $.serial_rcvd)),
             repeat($.qso_extra)
         ),
 
         time: $ => /\d{2,4}/,
         callsign: $ => /[a-zA-Z0-9/]+/,
-        rst_sent: $ => /\d+/,
-        rst_rcvd: $ => /\d+/,
+        rst: $ => /\d+/,
+        serial_sent: $ => seq(',', /\d+/),
+        serial_rcvd: $ => seq('.', /\d+/),
 
         qso_extra: $ => choice(
             $.grid,

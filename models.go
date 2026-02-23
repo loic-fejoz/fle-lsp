@@ -52,6 +52,8 @@ const (
 	TokenKeyword
 	// TokenReport represents a signal report.
 	TokenReport
+	// TokenSerial represents a serial number (sent with , or received with .).
+	TokenSerial
 	// TokenExtra represents extra or QSL information.
 	TokenExtra
 )
@@ -70,6 +72,8 @@ type QSO struct {
 	Mode           string // Interned (highly repetitive)
 	ReportSent     string // Interned (highly repetitive)
 	ReportReceived string // Interned (highly repetitive)
+	SerialSent     string // Interned
+	SerialReceived string // Interned
 	Name           string // Interned
 	Grid           string // Interned
 	Comment        string // Not interned (long, unique)
